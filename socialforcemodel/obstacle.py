@@ -63,6 +63,7 @@ class Obstacle(object):
         Returns:
             np.array: two-dimensional array of closest point, or None if no
                 closest point was found.
+            np.array: normal of obstacle pointing towards pos
         """
 
         # If this obstacle has only one point, return it.
@@ -74,7 +75,7 @@ class Obstacle(object):
             # distance is below it. If not, return no closest point.
             if threshold is not None and distance > threshold:
                 point = None
-            return point
+            return point, (pos - point) / distance
 
         # If an obstacle distance threshold is provided, check if the distance
         # to the bounding box exceeds this threshold. If so, return no closest
@@ -86,7 +87,7 @@ class Obstacle(object):
                 xdiff = min(abs(self.max[0] - pos[0]),
                             abs(self.min[0] - pos[0]))
                 if xdiff > threshold:
-                    return None
+                    return None, None
 
                 if pos[1] > self.max[1] or pos[1] < self.min[1]:
 
@@ -95,17 +96,20 @@ class Obstacle(object):
                                 abs(self.min[1] - pos[1]))
                     distance = np.sqrt(xdiff**2 + ydiff**2)
                     if distance > threshold:
-                        return None
+                        return None, None
             else:
                 ydiff = min(abs(self.max[1] - pos[1]),
                             abs(self.min[1] - pos[1]))
                 if ydiff > threshold:
-                    return None
+                    return None, None
 
         # Loop through all pairs of points and for each line, find the point
         # that is closest to the provided position.
         smallest_distance = np.inf
         closest_point = None
+        normal = None
+        closest_pair = None
+        last_ratio = None
 
         for first, second in self.pairs():
 
@@ -119,12 +123,26 @@ class Obstacle(object):
             if distance < smallest_distance:
                 smallest_distance = distance
                 closest_point = (1 - ratio) * first + ratio * second
+                closest_pair = (first, second)
+                last_ratio = ratio
 
         # Don't return a closest point if the distance is beyond the threshold.
-        if threshold is not None and distance > threshold:
+        if threshold is not None and smallest_distance > threshold:
             closest_point = None
 
-        return closest_point
+        if closest_point is not None:
+            if ratio < 0.0001 or ratio > 0.9999:
+                normal = (pos - closest_point) / smallest_distance
+            else:
+                diff_x = closest_pair[1][0] - closest_pair[0][0]
+                diff_y = closest_pair[1][1] - closest_pair[0][1]
+                normal = np.array([-diff_y, diff_x])
+                normal = normal / np.linalg.norm(normal)
+                off_point = closest_point + normal * 0.5 * smallest_distance
+                if np.linalg.norm(pos - off_point) > smallest_distance:
+                    normal = -normal
+
+        return closest_point, normal
 
     def intersects(self, p1, p2):
         """ Calculate intersection of polygon and line formed by p1 and p2.

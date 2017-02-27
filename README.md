@@ -1,6 +1,4 @@
-This package contains a Python implementation of the Social Force Model (Helbing, 1995). The crowd dynamics code is inspired by a C implementation of PedSim (https://github.com/srl-freiburg/pedsim_ros).
-
-The implementation has not yet been fully tested, so use with care.
+This package contains a Python implementation of the Helbing-Molnár-Farkas-Vicsek Social Force Model. The code was created for a master thesis and is still in active development.
 
 ### Installation
 
@@ -8,129 +6,183 @@ Just checkout the repository and run `python setup.py`.
 
 ### TODO
 
-- Confirm implementation correctness
-- Allow parameter tuning, such as preferred distance between pedestrians
-- Add unit tests
-- Add density map to `world.plot()`
-- Fix obstacle displaying in `world.plot()`
-- Create wireless sensor implementation
+- Add optimizations to social force calculations.
+- Add GUI to allow run-time parameter tuning and testing.
+- Add unit tests.
+- Allow targets to be defined as an area or line rather than a static point.
+- Improve target following algorithm
+- Add the possibility of defining a pedestrian density for an entrance, rather than a predefined number of pedestrians in a confined space
+- Add functionality to create and remove a disturbance in the model.
+- Let parameterloader give errors for unknown parameters.
+- Make parameterloader case insensitive.
+
+### YAML config files
+
+You can use a .yaml parameter file to load and build a world. The following parameters are configurable:
+
+##### Global parameters
+
+* `world_width` (*float*) - default `10.0` - width (x) of domain
+* `world_height` (*float*) - default `10.0` - height (y) of domain
+* `continuous_domain` (*boolean*) - default `False` - whether the domain should wrap around
+* `step_size` (*float*) - default `0.05` - simulation step size
+* `default_desired_velocity` (*float*) - default `1.3` - default desired velocity of pedestrians
+* `default_maximum_velocity` (*float*) - default `2.6` - default maximum velocity of pedestrians
+* `default_relaxation_time` (*float*) - default `2.0` - default relaxation time of pedestrians
+* `desired_velocity_importance` (*float*) - default `0.8` - between 0.0 and 1.0, lower means the velocity is more dependent on neighbourhood velocity
+* `interactive_distance_threshold` (*float*) - default `2.0` - distance after which objects and pedestrians are no longer used in interactive force calculations
+* `target_distance_threshold` (*float*) - default `0.13` - maximum distance to target for it to be considered reached
+* `repulsion_coefficient` (*float*) - default `2000 Newton`
+* `falloff_length` (*float*) - default `0.08 meters`
+* `body_force_constant` (*float*) - default `12000 kg / s²`
+* `friction_force_constant` (*float*) - default `24000 kg / ms`
+* `quad_tree_threshold` (*integer*) - maximum number of pedestrians in a quad tree leaf
+* `groups` (one or more *Group* entities) - pedestrian groups in this simulation
+* `obstacles` (one or more *Obstacle* entities) - obstacles in this simulation
+
+##### Entity variables
+
+###### Point:
+* `x` (*float*)
+* `y` (*float*)
+
+###### Area:
+* `start` (*Point*)
+* `end` (*Point*)
+    
+###### Group:
+Default values are taken from global variables if not provided.
+* `spawn_area` (*Area*) - The default area in which new pedestrians should spawn
+* `target_area` (*Area*) - The default area in which new pedestrian targets should spawn
+* `target_path` (one or more *Point* entities) - The path which pedestrians should follow to get to their target
+* `mass` (*float*) - default `60 kg` - Mass of pedestrians
+* `radius` (*float*) - default `0.15 m` - Radius of pedestrians
+* `desired_velocity` (*float*) - Desired velocity of pedestrians
+* `maximum_velocity` (*float*) - Maximum velocity of pedestrians
+* `relaxation_time` (*float*) - Relaxation time of pedestrians
+* `num_pedestrians` (*integer*) - The number of pedestrians to spawn with default parameters
+* `pedestrians` (one or more *Pedestrian* entities) - Pedestrians to add to this group
+
+###### Pedestrian:
+Pedestrians should always be part of a group. Variables that are not set are inferred from the group.
+* `start` (*Point*) - Spawn point
+* `target` (*Point*) - Target point
+* `target_path` (one or more *Point* entities) - The path which this pedestrian should follow to get to their target.
+* `mass` (*float*) - Mass of pedestrian
+* `radius` (*float*) - Radius of pedestrian
+* `desired_velocity` (*float*) - Desired velocity of pedestrian
+* `maximum_velocity` (*float*) - Maximum velocity of pedestrian
+* `relaxation_time` (*float*) - Relaxation time of pedestrian
+
+###### Obstacle:
+* `points` (one or more *Point* entities) - series of points. Line segments are drawn between pairs of points.
 
 ### Example code
 
-The following code creates two areas connected by a narrow tunnel where 80
-pedestrians try to go from one area to the next.
+#### Box with exit tunnel
+The following parameter file creates a 10x10 box connected to a 10x4 exit tunnel. The box starts with 100 pedestrians spawned at random positions in the box. Each pedestrian then attempts to navigate through the tunnel using a predefined target path, towards an off-screen target beyond the tunnel.
 
-```python
-import socialforcemodel as sfm
-import time
-
-# Set parameters.
-num_pedestrians = 80
-steps = 250
-
-# Create a world.
-world = sfm.World(30, 10, step_size = 0.05, desired_velocity=1.5 / 2, maximum_velocity=3.0 / 2)
-
-# Add the first group.
-group = sfm.Group(0)
-group.set_spawn_area(sfm.Area([1, 1], [9,  9]))
-group.set_target_area(sfm.Area([21, 1], [29,  9]))
-
-# Add nodes to the target path, so the pedestrians know which path to follow.
-group.add_path_node([9,  5])
-group.add_path_node([21,  5])
-
-# Create pedestrians.
-for i in range(num_pedestrians):
-    group.generate_pedestrian(i)
-world.add_group(group)
-
-# Create six walls. Should also work with 2 rectangles.
-wall = sfm.Obstacle([[10, 0], [10, 4]])
-world.add_obstacle(wall)
-
-wall = sfm.Obstacle([[10, 6], [10, 10]])
-world.add_obstacle(wall)
-
-wall = sfm.Obstacle([[10, 4], [20, 4]])
-world.add_obstacle(wall)
-
-wall = sfm.Obstacle([[10, 6], [20, 6]])
-world.add_obstacle(wall)
-
-wall = sfm.Obstacle([[20, 0], [20, 4]])
-world.add_obstacle(wall)
-
-wall = sfm.Obstacle([[20, 6], [20, 10]])
-world.add_obstacle(wall)
-
-# Update and plot.
-group.update()
-figure = world.plot()
-figure.savefig("img/0.png")
-
-for step in range(steps):
-    print
-    print "### STEP {} ###".format(step)
-    if not world.step():
-        break
-    if step % 5 == 4:
-        figure = world.plot()
-        figure.savefig("img/" + str(step + 1) + ".png")
+```yaml
+world_height: 10
+world_width: 20
+groups:
+    -   num_pedestrians: 100
+        spawn_area:
+            start:
+                x: 0.5
+                y: 0.5
+            end:
+                x: 9.5
+                y: 9.5
+        target_area:
+            start:
+                x: 20.0
+                y: 2.5
+            end:
+                x: 25.0
+                y: 7.5
+        target_path:
+            -   x: 9.5
+                y: 5.0
+            -   x: 21.0
+                y: 5.0
+obstacles:
+    -   points:
+            -   x: 10.0
+                y: 0.0
+            -   x: 10.0
+                y: 2.5
+            -   x: 11.0
+                y: 3.5
+            -   x: 20.0
+                y: 3.5
+    -   points:
+            -   x: 20.0
+                y: 6.5
+            -   x: 11.0
+                y: 6.5
+            -   x: 10.0
+                y: 7.5
+            -   x: 10.0
+                y: 10.0
 ```
 
-The following code creates a box with 80 pedestrians that keep wandering to
-random targets.
+The following Python file loads the parameters from the YAML file, creates a simulation, adds some measurements and runs and plots the situation.
 
 ```python
 import socialforcemodel as sfm
-import os
+import numpy as np
 import matplotlib.pyplot as plt
 
-# Simulation parameters.
-num_pedestrians = 80
-steps = 1000
+def average_speed(world):
+    velocities = []
+    for group in world.groups:
+        for p in group.pedestrians:
+            velocities.append(p.speed)
+    return np.mean(velocities)
 
-# Create a world of 11x11 meters.
-world = sfm.World(11, 11, step_size = 0.05, desired_velocity=0.75,
-                  maximum_velocity=1.5)
+def avg_num_neighbours(world):
+    counts = []
+    for group in world.groups:
+        for p in group.pedestrians:
+            counts.append(p.get_measurement('neighbourhood', 'num_neighbours'))
+    return np.mean(counts)
 
-# Create a box and add it to the world.
-world.add_obstacle(sfm.Obstacle([[0.5, 0.5], [0.5, 10.5]]))
-world.add_obstacle(sfm.Obstacle([[0.5, 10.5], [10.5, 10.5]]))
-world.add_obstacle(sfm.Obstacle([[0.5, 0.5], [10.5, 10.5]]))
-world.add_obstacle(sfm.Obstacle([[10.5, 0.5], [10.5, 10.5]]))
+def main(args):
+    loader = sfm.ParameterLoader(args.file)
+    world = loader.world
+    world.update()
 
-# Add a group and set the spawn and target area. Both the spawn and target
-# area are enclosed within the rectangle.
-group = sfm.Group(0)
-group.set_spawn_area(sfm.Area([1, 1], [10, 10]))
-group.set_target_area(sfm.Area([1, 1], [10, 10]))
-world.add_group(group)
+    world.add_measurement(average_speed)
+    world.add_measurement(avg_num_neighbours)
+    figure = world.plot()
+    figure.savefig("img/0.png",
+                   bbox_inches = 'tight',
+                   pad_inches = 0.1)
+    figure.clear()
+    plt.close(figure)
 
-# This assigns a new target to each pedestrian each time they reach their
-# current target.
-group.set_final_behaviour('wander')
+    for step in range(args.steps):
+        print "Step {}".format(step + 1)
+        if not world.step():
+            break
+        world.update()
+        if step % 5 == 4:
+            figure = world.plot()
+            figure.savefig("img/" + str((step + 1) / 5) + ".png",
+                           bbox_inches = 'tight',
+                           pad_inches = 0.1)
+            figure.clear()
+            plt.close(figure)
 
-# Generate the pedestrians.
-for i in range(num_pedestrians):
-    group.generate_pedestrian(i)
-world.add_group(group)
+    np.savetxt("measurements.txt", world.measurements)
 
-# Generate a starting figure.
-if not os.path.exists("img"):
-    os.path.makedirs("img")
-group.update()
-figure = world.plot()
-figure.savefig("img/0.png")
-plt.close()
-
-for step in range(steps):
-    if not world.step():
-        break
-    # Create an image every 5 steps.
-    if step % 5 == 4:
-        figure = world.plot()
-        figure.savefig("img/" + str(step + 1) + ".png")
-        plt.close()
+if __name__ == '__main__':
+    import argparse
+    import sys
+    parser = argparse.ArgumentParser()
+    parser.add_argument('file', help='YAML-file')
+    parser.add_argument('-s', '--steps', help='Number of steps', type=int, default=500)
+    args = parser.parse_args(sys.argv[1:])
+    main(args)
 ```

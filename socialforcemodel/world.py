@@ -1,18 +1,18 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import random
+import numpy as np
+from .quadtree import QuadTree
 
 
-class World:
+class World(object):
     """ Create a new world for the simulation.
 
     Create a new world for pedestrians and obstacles.
 
     Args:
-        length: length (meters in y) of this world
+        height: height (meters in y) of this world
         width: width (meters in x) of this world
-        obstacles: list of obstacles
-        groups: list of pedestrian groups
         desired_velocity: the default velocity of pedestrians
         maximum_velocity: the maximum velocity of pedestrians.
             Pedestrians may go faster than their desired velocity to
@@ -23,26 +23,83 @@ class World:
             to desired_velocity * step_size / 2.
     """
 
-    def __init__(self, length, width, obstacles=[], groups=[],
-                 desired_velocity=1.5, maximum_velocity=3.0,
-                 step_size=0.1, distance_threshold=None):
-        self.length = length
-        self.width = width
-        self.obstacles = obstacles
-        self.groups = groups
-        self.desired_velocity = desired_velocity
-        self.maximum_velocity = maximum_velocity
-        self.step_size = step_size
-        if distance_threshold:
-            self.distance_threshold = distance_threshold
-        else:
-            self.distance_threshold = desired_velocity * self.step_size
-        self.figure = None
-        self.ax = None
+    def __init__(self):
+        # Initial world parameters
+        self.height = 10
+        self.width = 10
+        self.step_size = 0.01
 
-    def length(self):
-        """ Get the length (y-direction) of this world. """
-        return self.length
+        # State properties
+        self.started = False
+        self.quadtree = None
+        self.obstacles = []
+        self.groups = []
+        self.barriers = []
+        self.measurement_functions = []
+        self.measurements = []
+
+        # Global variables
+        self.desired_velocity = 1.3
+        self.maximum_velocity = 2.6
+        self.relaxation_time = 2.0
+        self.continuous_domain = False
+        self.desired_velocity_importance = 1.0
+        self.target_distance_threshold = self.maximum_velocity * self.step_size
+        self.interactive_distance_threshold = 2.0
+        self.quadtree_threshold = 10
+        self.repulsion_coefficient = 2000
+        self.falloff_length = 0.08
+        self.body_force_constant = 12000
+        self.friction_force_constant = 24000
+
+    def set_height(self, height):
+        self.height = height
+
+    def set_width(self, width):
+        self.width = width
+
+    def set_desired_velocity(self, desired_velocity):
+        self.desired_velocity = desired_velocity
+
+    def set_maximum_velocity(self, maximum_velocity):
+        self.maximum_velocity = maximum_velocity
+
+    def set_relaxation_time(self, relaxation_time):
+        self.relaxation_time = relaxation_time
+
+    def set_wrap(self, value):
+        self.continuous_domain = value
+
+    def set_desired_velocity_importance(self, value):
+        self.desired_velocity_importance = value
+
+    def set_target_distance_threshold(self, value):
+        self.target_distance_threshold = value
+
+    def set_interactive_distance_threshold(self, value):
+        self.interactive_distance_threshold = value
+
+    def set_step_size(self, value):
+        self.step_size = value
+
+    def set_repulsion_coefficient(self, repulsion_coefficient):
+        self.repulsion_coefficient = repulsion_coefficient
+
+    def set_falloff_length(self, falloff_length):
+        self.falloff_length = falloff_length
+
+    def set_body_force_constant(self, body_force_constant):
+        self.body_force_constant = body_force_constant
+
+    def set_friction_force_constant(self, friction_force_constant):
+        self.friction_force_constant = friction_force_constant
+
+    def set_quadtree_threshold(self, value):
+        self.quadtree_threshold = value
+
+    def height(self):
+        """ Get the height (y-direction) of this world. """
+        return self.height
 
     def width(self):
         """ Get the width (x-direction) of this world. """
@@ -59,73 +116,128 @@ class World:
         if obstacle not in self.obstacles:
             self.obstacles.append(obstacle)
 
+    def add_barrier(self, barrier):
+        """ Add a measurement barrier to this world. """
+        if barrier not in self.barriers:
+            self.barriers.append(barrier)
+
+    def add_measurement(self, function):
+        """ Add a measurement function to this world. """
+        self.measurement_functions.append(function)
+        self.measurements.append([])
+
+    def update(self):
+        """ Update the current world. """
+        if not self.started:
+            self.initialize_tree()
+
+        for group in self.groups:
+            group.update()
+
+    def initialize_tree(self):
+        """ Initialize the Quad Tree implementation. """
+        self.quadtree = QuadTree(0.0, 0.0, max(self.width, self.height),
+                                 self.quadtree_threshold)
+        for group in self.groups:
+            for pedestrian in group.pedestrians:
+                self.quadtree.add(pedestrian)
+
+        self.started = True
+
     def step(self):
         """ Advance all pedestrians in this world. """
+        if not self.started:
+            self.initialize_tree()
+
         pedestrians = []
 
-        if not self.figure:
-            self.figure = plt.figure()
-            self.ax = self.figure.add_subplot(1, 1, 1)
-
-        # Update all groups and their pedestrian targets first.
         for group in self.groups:
             pedestrians += group.pedestrians
 
         if pedestrians == []:
             return False
 
-        # Shuffle all pedestrians.
-        random.shuffle(pedestrians)
-
         # Loop through all pedestrians in the shuffled order.
         for p in pedestrians:
-            p.step(self.step_size, pedestrians, self.obstacles)
+            p.step(self.step_size, self.obstacles)
 
-        for group in self.groups:
-            group.update()
+        self.update()
+
+        for index in range(len(self.measurement_functions)):
+            function = self.measurement_functions[index]
+            self.measurements[index].append(function(self))
 
         return True
 
     def plot(self):
+        """ Create a plot of the current world. """
 
-        if not self.figure:
-            self.figure = plt.figure()
-            self.ax = self.figure.add_subplot(1, 1, 1)
+        # Create a new plot and figure.
+        figure = plt.figure()
+        ax = figure.add_subplot(1, 1, 1)
 
-        self.ax.set_xlim([0, self.length])
-        self.ax.set_ylim([0, self.width])
+        # Scale plot to current world.
+        ax.set_xlim([0, self.width])
+        ax.set_ylim([0, self.height])
+        ax.set_aspect('equal')
 
+        # Set colours.
         colors = [c['color'] for c in list(mpl.rcParams['axes.prop_cycle'])]
 
+        if self.quadtree:
+            self.quadtree.draw(ax)
+
         group = None
+        # Plot all pedestrians as quivers and their targets as points.
         for group in self.groups:
             for p in group.pedestrians:
-                self.ax.quiver(p.position[0], p.position[1],
-                               10 * p.velocity[0] * self.step_size,
-                               10 * p.velocity[1] * self.step_size,
-                               angles='xy', scale_units='xy',
-                               scale=1, color=colors[group.id * 2])
-                self.ax.scatter([p.position[0]], [p.position[1]],
-                                color=colors[group.id * 2])
-                self.ax.plot(p.target[0], p.target[1], 'o',
-                             color=colors[group.id * 2 + 1])
+                p.plot(ax, color=colors[group.id * 2])
 
+        # Plot all obstacles as lines.
         for obstacle in self.obstacles:
             arr = obstacle.pairs()
             if len(arr) == 0:
-                self.ax.scatter([obstacle.points[0][0]],
-                                [obstacle.points[0][1]],
-                                color=colors[group.id * 2 + 2])
+                ax.scatter([obstacle.points[0][0]],
+                           [obstacle.points[0][1]],
+                           color=colors[group.id * 2 + 2])
             else:
-                X = []
-                Y = []
-                for point in arr[0]:
-                    X.append(point[0])
-                    Y.append(point[1])
-                self.ax.plot(X, Y, color=colors[group.id * 2 + 2])
+                for start, end in arr:
+                    X = [start[0], end[0]]
+                    Y = [start[1], end[1]]
+                    # print X, Y
+                    ax.plot(X, Y, color=colors[group.id * 2 + 2])
 
-        figure = self.figure
-        self.figure = None
-        self.ax = None
+        # Return the figure.
+        return figure
 
+    def density_plot(self, tile_size=2, threshold=5):
+        """ Create a density plot of the current world.
+            Args:
+                tile_size  height and width of density plot tiles
+                threshold  threshold value for which the tile is red
+        """
+        # Create a new plot and figure.
+        figure = plt.figure()
+        ax = figure.add_subplot(1, 1, 1)
+
+        # Create colormap and luminance map.
+        norm = mpl.colors.Normalize(vmin=0, vmax=threshold)
+
+        # Create a list of tiles.
+        tile_list = np.zeros((np.ceil(float(self.height) / tile_size),
+                             np.ceil(float(self.width) / tile_size)))
+
+        tile_dim = tile_list.shape
+
+        X, Y = np.meshgrid(np.arange(tile_dim[1] + 1) * tile_size,
+                           np.arange(tile_dim[0] + 1) * tile_size)
+
+        # Loop through all pedestrians and add them to the list of tiles.
+        for group in self.groups:
+            for p in group.pedestrians:
+                index = np.floor(p.position / tile_size)
+                tile_list[index[0]][index[1]] += 1
+                ax.plot(p.position[0], p.position[1], 'o')
+
+        ax.pcolormesh(Y, X, tile_list, rasterized=True, norm=norm, alpha=0.5)
         return figure

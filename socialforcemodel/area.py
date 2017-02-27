@@ -19,8 +19,8 @@ class Area:
         self.start = start
         self.end = end
 
-    def length(self):
-        """ Get the length (y-dimension) of the area. """
+    def height(self):
+        """ Get the height (y-dimension) of the area. """
         return abs(self.end[1] - self.start[1])
 
     def width(self):

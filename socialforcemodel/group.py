@@ -2,7 +2,7 @@ from .pedestrian import Pedestrian
 import numpy as np
 
 
-class Group:
+class Group(object):
     """ Class defining a group of pedestrians with a common spawn and target.
 
     All pedestrians in a group expose similar behaviour. They have a common
@@ -25,6 +25,8 @@ class Group:
         self.world = world
         self.path = target_path
         self.final_behaviour = 'remove'
+        self.default_mass = 60
+        self.default_radius = 0.15
 
     def set_world(self, world):
         """ Set the world for this pedestrian group. """
@@ -38,18 +40,26 @@ class Group:
         """ Set the target area for this group. """
         self.target_area = target_area
 
+    def set_default_mass(self, mass):
+        self.default_mass = mass
+
+    def set_default_radius(self, radius):
+        self.default_radius = radius
+
     def add_path_node(self, node):
         """ Append a target node to this target path. """
         self.path.append(node)
 
     def add_pedestrian(self, pedestrian):
         """ Add a pedestrian to this pedestrian group. """
-        if not pedestrian in self.pedestrians:
+        if pedestrian not in self.pedestrians:
             self.pedestrians.append(pedestrian)
+        if not pedestrian.group:
+            pedestrian.group = self
 
-    def generate_pedestrian(self, uid, **kwargs):
+    def generate_pedestrian(self, **kwargs):
         """ Generate a pedestrian for this group. """
-        Pedestrian(uid, self, **kwargs)
+        Pedestrian(self, **kwargs)
 
     def remove_pedestrian(self, pedestrian):
         """ Remove a pedestrian from this group. """
@@ -89,7 +99,7 @@ class Group:
         spawn = np.random.rand(2)
         area = self.spawn_area
         position = np.array([spawn[0] * area.width() + area.start[0],
-                             spawn[1] * area.length() + area.start[1]])
+                             spawn[1] * area.height() + area.start[1]])
         return position
 
     def generate_target(self):
@@ -102,7 +112,7 @@ class Group:
         target = np.random.rand(2)
         area = self.target_area
         position = np.array([target[0] * area.width() + area.start[0],
-                            target[1] * area.length() + area.start[1]])
+                            target[1] * area.height() + area.start[1]])
         return position
 
     def generate_target_path(self):
@@ -130,7 +140,7 @@ class Group:
                 elif self.final_behaviour is "wander":
                     p.target_path.append(self.generate_target())
                 else:
-                    p.desired_velocity = 0.0
+                    pass
 
         # Remove all pedestrians that can be removed from the simulation.
         for p in to_remove:
