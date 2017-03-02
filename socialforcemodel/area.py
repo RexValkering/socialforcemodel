@@ -26,3 +26,7 @@ class Area:
     def width(self):
         """ Get the width (x-dimension) of the area. """
         return abs(self.end[0] - self.start[0])
+
+    def in_area(self, position):
+        return (position[0] >= self.start[0] and position[0] <= self.end[0] and
+                position[1] >= self.start[1] and position[1] <= self.end[1])

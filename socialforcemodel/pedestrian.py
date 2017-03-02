@@ -2,6 +2,7 @@ import numpy as np
 from itertools import count
 from matplotlib.patches import Circle
 from .math import *
+from .area import Area
 import time
 
 
@@ -40,6 +41,7 @@ class Pedestrian(object):
         self.desired_velocity = desired_velocity
         self.maximum_velocity = maximum_velocity
         self.relaxation_time = relaxation_time
+        self.target_is_point = True
 
         # Generate a spawn if not defined.
         if start is None:
@@ -49,6 +51,7 @@ class Pedestrian(object):
 
         # Generate a target path if not defined.
         if not target_path or target_path is []:
+            self.target_is_point = False
             self.target_path = group.generate_target_path()
         else:
             self.target_path = target_path
@@ -90,6 +93,8 @@ class Pedestrian(object):
             name: name of measurement
             time: array offset to get measurement from (default last)
         """
+        if time not in self.measurements:
+            return False
         return self.measurements[time][category][name]
 
     def step(self, step_size, obstacles):
@@ -213,6 +218,9 @@ class Pedestrian(object):
         if len(self.target_path) > 1:
             return False
 
+        if len(self.target_path) > 0 and isinstance(self.target_path[0], Area):
+            return self.group.target_area.in_area(self.position)
+
         if self.target_path == [] or self.distance_to_target() < \
                 self.group.world.target_distance_threshold:
             return True
@@ -224,7 +232,16 @@ class Pedestrian(object):
         if self.target_path == []:
             return 0.0
 
-        return np.sqrt(length_squared(self.position - self.target_path[0]))
+        target = self.target_path[0]
+
+        if isinstance(target, Area):
+            new_target = [0.0, 0.0]
+            pos = self.position
+            new_target[0] = min(max(pos[0], target.start[0]), target.end[0])
+            new_target[1] = min(max(pos[1], target.start[1]), target.end[1])
+            target = new_target
+
+        return np.sqrt(length_squared(self.position - target))
 
     def set_desired_velocity(self, velocity):
         """ Set the desired velocity of this pedestrian. """
@@ -233,6 +250,14 @@ class Pedestrian(object):
     def desired_direction(self):
         """ Get the desired direction of this pedestrian. """
         target = self.target_path[0]
+
+        if isinstance(target, Area):
+            new_target = [0.0, 0.0]
+            pos = self.position
+            new_target[0] = min(max(pos[0], target.start[0]), target.end[0])
+            new_target[1] = min(max(pos[1], target.start[1]), target.end[1])
+            target = new_target
+
         desired_dir = target - self.position
         return desired_dir / np.linalg.norm(desired_dir)
 

@@ -54,7 +54,7 @@ class ParameterLoader(object):
         # Parse groups
         if 'groups' in data:
             for g in data['groups']:
-                world.add_group(self.parse_group(g))
+                self.parse_group(g)
 
         # Parse obstacles.
         if 'obstacles' in data:
@@ -63,13 +63,27 @@ class ParameterLoader(object):
 
     def parse_group(self, data):
         """ Parse the group data and return the corresponding group. """
-        group = Group(len(self.world.groups))
+        group = Group(len(self.world.groups), self.world)
 
         kwargs = dict()
+
+        standard_parse_functions = {
+            'desired_velocity': group.set_desired_velocity,
+            'maximum_velocity': group.set_maximum_velocity,
+            'relaxation_time': group.set_relaxation_time,
+            'spawn_rate': group.set_spawn_rate,
+            'start_time': group.set_start_time
+        }
+
+        # Parse group characteristics
+        for (key, function) in standard_parse_functions.items():
+            if key in data:
+                function(data[key])
 
         standard_variables = ['mass', 'radius', 'desired_velocity',
                               'maximum_velocity', 'relaxation_time',
                               'final_behaviour']
+
         for var in standard_variables:
             if var in data:
                 kwargs[var] = data[var]
@@ -95,7 +109,7 @@ class ParameterLoader(object):
         # Generate pedestrians.
         if 'num_pedestrians' in data:
             for i in range(int(data['num_pedestrians'])):
-                group.generate_pedestrian(**kwargs)
+                group.spawn_pedestrian(**kwargs)
 
         return group
 
@@ -114,7 +128,9 @@ class ParameterLoader(object):
             if var in data:
                 kwargs[var] = data[var]
 
-        return Pedestrian(**kwargs)
+        print kwargs
+
+        return Pedestrian(group, **kwargs)
 
     def parse_obstacle(self, data):
         """ Parse the obstacle data and return the new Obstacle. """

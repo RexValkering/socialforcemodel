@@ -9,10 +9,6 @@ Just checkout the repository and run `python setup.py`.
 - Add optimizations to social force calculations.
 - Add GUI to allow run-time parameter tuning and testing.
 - Add unit tests.
-- Allow targets to be defined as an area or line rather than a static point.
-- Improve target following algorithm
-- Add the possibility of defining a pedestrian density for an entrance, rather than a predefined number of pedestrians in a confined space
-- Add functionality to create and remove a disturbance in the model.
 - Let parameterloader give errors for unknown parameters.
 - Make parameterloader case insensitive.
 
@@ -52,7 +48,9 @@ You can use a .yaml parameter file to load and build a world. The following para
     
 ###### Group:
 Default values are taken from global variables if not provided.
+* `start_time` (*float*) - default `0 seconds` - Time at which this group should appear in the simulation
 * `spawn_area` (*Area*) - The default area in which new pedestrians should spawn
+* `spawn_rate` (*float*) - default `0 pedestrians per second` - Pedestrian spawn rate
 * `target_area` (*Area*) - The default area in which new pedestrian targets should spawn
 * `target_path` (one or more *Point* entities) - The path which pedestrians should follow to get to their target
 * `mass` (*float*) - default `60 kg` - Mass of pedestrians

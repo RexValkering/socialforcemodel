@@ -28,6 +28,7 @@ class World(object):
         self.height = 10
         self.width = 10
         self.step_size = 0.01
+        self.time = 0.0
 
         # State properties
         self.started = False
@@ -109,7 +110,6 @@ class World(object):
         """ Add a group to this world. """
         if group not in self.groups:
             self.groups.append(group)
-        group.world = self
 
     def add_obstacle(self, obstacle):
         """ Add an obstacle to this world. """
@@ -138,24 +138,27 @@ class World(object):
         """ Initialize the Quad Tree implementation. """
         self.quadtree = QuadTree(0.0, 0.0, max(self.width, self.height),
                                  self.quadtree_threshold)
-        for group in self.groups:
-            for pedestrian in group.pedestrians:
-                self.quadtree.add(pedestrian)
+        # for group in self.groups:
+        #     for pedestrian in group.get_pedestrians():
+        #         self.quadtree.add(pedestrian)
 
         self.started = True
 
     def step(self):
         """ Advance all pedestrians in this world. """
         if not self.started:
-            self.initialize_tree()
+            self.update()
 
         pedestrians = []
+        expecting_spawn = False
 
         for group in self.groups:
-            pedestrians += group.pedestrians
+            if group.spawn_rate > 0:
+                expecting_spawn = True
+            pedestrians += group.get_pedestrians()
 
         if pedestrians == []:
-            return False
+            return expecting_spawn
 
         # Loop through all pedestrians in the shuffled order.
         for p in pedestrians:
@@ -166,6 +169,8 @@ class World(object):
         for index in range(len(self.measurement_functions)):
             function = self.measurement_functions[index]
             self.measurements[index].append(function(self))
+
+        self.time += self.step_size
 
         return True
 
@@ -190,7 +195,7 @@ class World(object):
         group = None
         # Plot all pedestrians as quivers and their targets as points.
         for group in self.groups:
-            for p in group.pedestrians:
+            for p in group.get_pedestrians():
                 p.plot(ax, color=colors[group.id * 2])
 
         # Plot all obstacles as lines.
