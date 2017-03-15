@@ -157,20 +157,21 @@ class World(object):
                 expecting_spawn = True
             pedestrians += group.get_pedestrians()
 
-        if pedestrians == []:
-            return expecting_spawn
+        if pedestrians != []:
+            # Loop through all pedestrians in the shuffled order.
+            for p in pedestrians:
+                p.step(self.step_size, self.obstacles)
 
-        # Loop through all pedestrians in the shuffled order.
-        for p in pedestrians:
-            p.step(self.step_size, self.obstacles)
-
-        self.update()
+            self.update()
 
         for index in range(len(self.measurement_functions)):
             function = self.measurement_functions[index]
             self.measurements[index].append(function(self))
 
         self.time += self.step_size
+
+        if pedestrians == []:
+            return expecting_spawn
 
         return True
 
