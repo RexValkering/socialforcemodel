@@ -30,3 +30,9 @@ class Area:
     def in_area(self, position):
         return (position[0] >= self.start[0] and position[0] <= self.end[0] and
                 position[1] >= self.start[1] and position[1] <= self.end[1])
+
+    def get_closest_point(self, position):
+        new_target = [0.0, 0.0]
+        new_target[0] = min(max(position[0], self.start[0]), self.end[0])
+        new_target[1] = min(max(position[1], self.start[1]), self.end[1])
+        return new_target

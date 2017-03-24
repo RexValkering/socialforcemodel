@@ -1,4 +1,5 @@
 import numpy as np
+from .area import Area
 
 
 class Obstacle(object):
@@ -155,6 +156,9 @@ class Obstacle(object):
             np.array if intersection, else None
         """
 
+        if isinstance(p2, Area):
+            p2 = p2.get_closest_point(p1)
+
         if (p1[0] < self.min[0] and p2[0] < self.min[0]) or \
                 (p1[0] > self.max[0] and p2[0] > self.max[0]) or \
                 (p1[1] < self.min[1] and p2[1] < self.min[1]) or \
@@ -197,3 +201,66 @@ class Obstacle(object):
         if closest_point is not None:
             return closest_point
         return None
+
+    def offset_points(self, offset=0.15):
+        """ Return a list of points with an offset from the obstacle
+        respective to the normal and inverse normal.
+
+        Given an obstacle and an offset, for each pair of lines the normal
+        vector of that corner is determined and two points are added: a point
+        inside the obstacle and a point outside of the obstacle, with distance
+        offset from the corner.
+
+        If the obstacle is a point or a line, four points are returned which
+        'encapsulate' the obstacle.
+
+        Args:
+            offset: distance of points from corners
+
+        Returns:
+            list of points
+        """
+        pairs = self.pairs()
+        result = []
+
+        # If the obstacle is a single point, encapsulate the obstacle.
+        if len(pairs) == 0:
+            point = self.points[0]
+            offsets = [offset, 0, -offset, 0]
+
+            for i in range(4):
+                result.append(np.array(point[0] + offsets[i],
+                                       point[1] + offsets[(i + 1) % 4]))
+            return result
+
+        # If the obstacle is a single line, encapsulate it.
+        if len(pairs) == 1:
+            first = pairs[0][0]
+            second = pairs[0][1]
+            diff = second - first
+            rotated_diff = [-diff[1] - diff[0], diff[0] - diff[1]]
+
+            length = np.sqrt(rotated_diff[0]**2 + rotated_diff[1]**2)
+            scaled_diff = rotated_diff / length
+
+            for i in range(4):
+                result.append(pairs[0][i // 2] + rotated_diff)
+                rotated_diff = [-rotated_diff[1], rotated_diff[0]]
+
+            return result
+
+        for i in range(len(pairs)):
+            # Get the two pairs.
+            first = pairs[i]
+            second = pairs[(i + 1) % len(pairs)]
+
+            # Calculate the normal pointing inwards
+            normal = [first[0] - first[1], second[1] - first[1]]
+            length = np.sqrt(normal[0]**2 + normal[1]**2)
+            scaled_normal = normal * offset / length
+
+            # Add the two points.
+            result.append(np.array([first[1] + scaled_normal]))
+            result.append(np.array([first[1] - scaled_normal]))
+
+        return result
