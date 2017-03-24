@@ -179,6 +179,7 @@ class World(object):
         """ Create a plot of the current world. """
 
         # Create a new plot and figure.
+        plt.style.use('ggplot')
         figure = plt.figure()
         ax = figure.add_subplot(1, 1, 1)
 
@@ -197,21 +198,23 @@ class World(object):
         # Plot all pedestrians as quivers and their targets as points.
         for group in self.groups:
             for p in group.get_pedestrians():
-                p.plot(ax, color=colors[group.id * 2])
+                p.plot(ax, color=colors[group.id % len(colors)])
 
         # Plot all obstacles as lines.
         for obstacle in self.obstacles:
             arr = obstacle.pairs()
+            last_color = None
+
             if len(arr) == 0:
                 ax.scatter([obstacle.points[0][0]],
                            [obstacle.points[0][1]],
-                           color=colors[group.id * 2 + 2])
+                           color='black')
             else:
                 for start, end in arr:
                     X = [start[0], end[0]]
                     Y = [start[1], end[1]]
                     # print X, Y
-                    ax.plot(X, Y, color=colors[group.id * 2 + 2])
+                    ax.plot(X, Y, color='black')
 
         # Return the figure.
         return figure

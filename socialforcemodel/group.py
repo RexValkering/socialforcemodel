@@ -27,6 +27,7 @@ class Group(object):
         self.path = target_path
         self.start_time = 0
         self.active = False
+        self.ornstein_uhlenbeck = False
 
         # Pedestrian attributes
         self.pedestrians = []
@@ -77,6 +78,22 @@ class Group(object):
     def set_relaxation_time(self, relaxation_time):
         self.relaxation_time = relaxation_time
 
+    def set_ornstein_uhlenbeck_process(self, mean, theta, sigma):
+        """ Enable the Ornstein-Uhlenbeck process for deviating desired
+        velocity.
+
+        The desired velocity of the pedestrian will emulate brownian motion,
+        but will gravitate towards the mean desired velocity.
+
+        Args:
+            mean: the mean the process should gravitate towards
+            theta: scaling factor of difference with mean
+            sigma: scaling factor of random variation
+        """
+        self.ornstein_uhlenbeck = (mean, theta, sigma)
+        for p in self.pedestrians:
+            p.set_ornstein_uhlenbeck_process(mean, theta, sigma)
+
     def add_path_node(self, node):
         """ Append a target node to this target path. """
         self.path.append(node)
@@ -110,6 +127,10 @@ class Group(object):
                 kwargs[var] = defaults[var]
 
         p = Pedestrian(self, **kwargs)
+        if self.ornstein_uhlenbeck is not False:
+            mean, theta, sigma = self.ornstein_uhlenbeck
+            p.set_ornstein_uhlenbeck_process(mean, theta, sigma)
+
         if self.active:
             self.world.quadtree.add(p)
 
@@ -218,4 +239,3 @@ class Group(object):
             poisson_lambda = self.spawn_rate * self.world.step_size
             for s in range(np.random.poisson(poisson_lambda)):
                 self.spawn_pedestrian()
-

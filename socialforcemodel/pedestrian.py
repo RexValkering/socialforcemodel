@@ -42,6 +42,7 @@ class Pedestrian(object):
         self.maximum_velocity = maximum_velocity
         self.relaxation_time = relaxation_time
         self.target_is_point = True
+        self.ornstein_uhlenbeck = False
 
         # Generate a spawn if not defined.
         if start is None:
@@ -97,6 +98,20 @@ class Pedestrian(object):
             return False
         return self.measurements[time][category][name]
 
+    def set_ornstein_uhlenbeck_process(self, mean, theta, sigma):
+        """ Enable the Ornstein-Uhlenbeck process for deviating desired
+        velocity.
+
+        The desired velocity of the pedestrian will emulate brownian motion,
+        but will gravitate towards the mean desired velocity.
+
+        Args:
+            mean: the mean the process should gravitate towards
+            theta: scaling factor of difference with mean
+            sigma: scaling factor of random variation
+        """
+        self.ornstein_uhlenbeck = (mean, theta, sigma)
+
     def step(self, step_size, obstacles):
         """ Calculate the position and velocity at next timestep.
 
@@ -116,6 +131,7 @@ class Pedestrian(object):
             return
 
         self.measurements.append({})
+        self.add_measurement('self', 'time', self.group.world.time)
 
         # Calculate the new velocity and position using Social Force
         # Propagation.
@@ -176,6 +192,13 @@ class Pedestrian(object):
         self.velocity = self.next_velocity
         self.speed = self.next_speed
 
+        # Updated desired velocity.
+        if self.ornstein_uhlenbeck is not False:
+            mean, theta, sigma = self.ornstein_uhlenbeck
+            self.desired_velocity += (theta * (mean - self.desired_velocity) *
+                                      self.group.world.step_size + sigma *
+                                      np.random.normal())
+
         if not self.quad:
             self.group.world.quadtree.add(self)
 
@@ -235,11 +258,7 @@ class Pedestrian(object):
         target = self.target_path[0]
 
         if isinstance(target, Area):
-            new_target = [0.0, 0.0]
-            pos = self.position
-            new_target[0] = min(max(pos[0], target.start[0]), target.end[0])
-            new_target[1] = min(max(pos[1], target.start[1]), target.end[1])
-            target = new_target
+            target = target.get_closest_point(self.position)
 
         return np.sqrt(length_squared(self.position - target))
 
@@ -252,11 +271,7 @@ class Pedestrian(object):
         target = self.target_path[0]
 
         if isinstance(target, Area):
-            new_target = [0.0, 0.0]
-            pos = self.position
-            new_target[0] = min(max(pos[0], target.start[0]), target.end[0])
-            new_target[1] = min(max(pos[1], target.start[1]), target.end[1])
-            target = new_target
+            target = target.get_closest_point(self.position)
 
         desired_dir = target - self.position
         return desired_dir / np.linalg.norm(desired_dir)
