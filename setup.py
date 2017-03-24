@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='socialforcemodel',
-      version='0.1',
+      version='0.12',
       description='A python implementation of the Social Force Model',
       classifiers=[
           'Development Status :: 1 - Planning',
@@ -14,6 +14,8 @@ setup(name='socialforcemodel',
       license='MIT',
       packages=['socialforcemodel'],
       install_requires=[
-          'numpy'
+          'numpy',
+          'matplotlib',
+          'pyyaml'
       ],
       zip_safe=False)
