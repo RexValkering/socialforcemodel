@@ -44,6 +44,7 @@ class World(object):
         self.maximum_velocity = 2.6
         self.relaxation_time = 2.0
         self.continuous_domain = False
+        self.ignore_pedestrians_behind = False
         self.desired_velocity_importance = 1.0
         self.target_distance_threshold = self.maximum_velocity * self.step_size
         self.interactive_distance_threshold = 2.0
@@ -52,6 +53,15 @@ class World(object):
         self.falloff_length = 0.08
         self.body_force_constant = 12000
         self.friction_force_constant = 24000
+        self.turbulence = True
+        self.velocity_variance_factor = 0.0
+        self.angle_variance_factor = 0.0
+        self.smoothing_parameter = np.sqrt(10)
+        self.turbulence_d0 = 0.31
+        self.turbulence_d1 = 0.45
+        self.turbulence_max_repulsion = 160.0
+        self.turbulence_lambda = 0.25
+        self.turbulence_exponent = 2
 
     def set_height(self, height):
         self.height = height
@@ -97,6 +107,33 @@ class World(object):
 
     def set_quadtree_threshold(self, value):
         self.quadtree_threshold = value
+
+    def set_ignore_pedestrians_behind(self, value):
+        self.ignore_pedestrians_behind = value
+
+    def set_turbulence(self, value):
+        self.turbulence = value
+
+    def set_velocity_variance_factor(self, value):
+        self.velocity_variance_factor = value
+
+    def set_angle_variance_factor(self, value):
+        self.angle_variance_factor = value
+
+    def set_turbulence_d0(self, value):
+        self.turbulence_d0 = value
+
+    def set_turbulence_d1(self, value):
+        self.turbulence_d1 = value
+
+    def set_turbulence_max_repulsion(self, value):
+        self.turbulence_max_repulsion = value
+
+    def set_turbulence_lambda(self, value):
+        self.turbulence_lambda = value
+
+    def set_turbulence_exponent(self, value):
+        self.turbulence_exponent = value
 
     def height(self):
         """ Get the height (y-direction) of this world. """
@@ -175,7 +212,7 @@ class World(object):
 
         return True
 
-    def plot(self):
+    def plot(self, add_quiver=False):
         """ Create a plot of the current world. """
 
         # Create a new plot and figure.
@@ -198,7 +235,8 @@ class World(object):
         # Plot all pedestrians as quivers and their targets as points.
         for group in self.groups:
             for p in group.get_pedestrians():
-                p.plot(ax, color=colors[group.id % len(colors)])
+                p.plot(ax, color=colors[group.id % len(colors)],
+                       add_quiver=add_quiver)
 
         # Plot all obstacles as lines.
         for obstacle in self.obstacles:

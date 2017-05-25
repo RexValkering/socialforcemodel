@@ -43,13 +43,24 @@ class ParameterLoader(object):
             'repulsion_coefficient': world.set_repulsion_coefficient,
             'falloff_length': world.set_falloff_length,
             'body_force_constant': world.set_body_force_constant,
-            'friction_force_constant': world.set_friction_force_constant
+            'friction_force_constant': world.set_friction_force_constant,
+            'ignore_pedestrians_behind': world.set_ignore_pedestrians_behind,
+            'turbulence': world.set_turbulence,
+            'velocity_variance_factor': world.set_velocity_variance_factor,
+            'angle_variance_factor': world.set_angle_variance_factor,
+            'turbulence_d0': world.set_turbulence_d0,
+            'turbulence_d1': world.set_turbulence_d1,
+            'turbulence_max_repulsion': world.set_turbulence_max_repulsion,
+            'turbulence_lambda': world.set_turbulence_lambda,
+            'turbulence_exponent': world.set_turbulence_exponent
         }
 
         # Parse world dimensions and characteristics
-        for (key, function) in standard_parse_functions.items():
-            if key in data:
-                function(data[key])
+        for key in data:
+            if key in standard_parse_functions:
+                standard_parse_functions[key](data[key])
+            elif key not in ['groups', 'obstacles']:
+                print "Warning: parameter {} not recognized".format(key)
 
         # Parse groups
         if 'groups' in data:
@@ -72,7 +83,8 @@ class ParameterLoader(object):
             'maximum_velocity': group.set_maximum_velocity,
             'relaxation_time': group.set_relaxation_time,
             'spawn_rate': group.set_spawn_rate,
-            'start_time': group.set_start_time
+            'start_time': group.set_start_time,
+            'repulsion_weight': group.set_repulsion_weight
         }
 
         # Parse group characteristics

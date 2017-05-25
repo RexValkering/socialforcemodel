@@ -22,6 +22,8 @@ class Group(object):
         self.world = world
         self.id = group_id
         self.spawn_rate = 0.0
+        self.spawn_max = None
+        self.spawn_count = 0
         self.spawn_area = spawn_area
         self.target_area = target_area
         self.path = target_path
@@ -34,9 +36,11 @@ class Group(object):
         self.final_behaviour = 'remove'
         self.default_mass = 60
         self.default_radius = 0.15
+        self.desired_velocity_function = None
         self.desired_velocity = self.world.desired_velocity
         self.maximum_velocity = self.world.maximum_velocity
         self.relaxation_time = self.world.relaxation_time
+        self.repulsion_weight = 1.0
 
         world.add_group(self)
 
@@ -59,6 +63,10 @@ class Group(object):
         """
         self.spawn_rate = spawn_rate
 
+    def set_spawn_max(self, spawn_max):
+        """ Set the maximum number of pedestrians to be spawned. """
+        self.spawn_max = spawn_max
+
     def set_target_area(self, target_area):
         """ Set the target area for this group. """
         self.target_area = target_area
@@ -69,8 +77,42 @@ class Group(object):
     def set_default_radius(self, radius):
         self.default_radius = radius
 
+    def set_repulsion_weight(self, value):
+        """ Sets how much the repulsion force is weighed. """
+        self.repulsion_weight = value
+
     def set_desired_velocity(self, desired_velocity):
-        self.desired_velocity = desired_velocity
+        """ Set the desired velocity of a pedestrian.
+
+        Args:
+            desired_velocity: one of the following formats:
+            -   float with desired velocity in m/s
+            -   'normal m s', where m is the mean and s is the sigma
+            -   'exponential l', where l is the lambda
+        """
+        try:
+            if isinstance(desired_velocity, float):
+                self.desired_velocity = desired_velocity
+            else:
+                args = desired_velocity.split()
+                if args[0] == "normal" and len(args) == 3:
+                    normal = float(args[1])
+                    sigma = float(args[2])
+
+                    def normal_function():
+                        return np.random.normal(normal, sigma)
+                    self.desired_velocity_function = normal_function
+                elif args[0] == "exponential" and len(args) == 2:
+                    beta = 1.0 / float(args[1])
+
+                    def exponential_function():
+                        return np.random.exponential(beta)
+                    self.desired_velocity_function = exponential_function
+                else:
+                    raise ValueError("Incorrect argument for group desired \
+                                      velocity")
+        except ValueError:
+            raise ValueError("Incorrect argument for group desired velocity")
 
     def set_maximum_velocity(self, maximum_velocity):
         self.maximum_velocity = maximum_velocity
@@ -122,6 +164,11 @@ class Group(object):
                     'maximum_velocity': self.maximum_velocity,
                     'relaxation_time': self.relaxation_time}
 
+        # Allow distributions as functions.
+        if self.desired_velocity_function is not None:
+            # print "Func"
+            kwargs['desired_velocity'] = self.desired_velocity_function()
+
         for var in defaults:
             if var not in kwargs:
                 kwargs[var] = defaults[var]
@@ -133,6 +180,8 @@ class Group(object):
 
         if self.active:
             self.world.quadtree.add(p)
+
+        self.spawn_count += 1
 
     def activate(self):
         self.active = True
@@ -235,7 +284,8 @@ class Group(object):
             self.remove_pedestrian(p)
 
         # Spawn new pedestrians based on the spawn rate.
-        if self.spawn_rate:
+        if self.spawn_rate and (self.spawn_max is None or
+                                len(self.pedestrians) < self.spawn_max):
             poisson_lambda = self.spawn_rate * self.world.step_size
             for s in range(np.random.poisson(poisson_lambda)):
                 self.spawn_pedestrian()

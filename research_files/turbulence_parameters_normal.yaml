@@ -1,0 +1,39 @@
+world_height: 5
+world_width: 100
+step_size: 0.02
+continuous_domain: True
+groups:
+    -   spawn_rate: 10
+        spawn_max: 100
+        spawn_area:
+            start:
+                x: 1.0
+                y: 1.6
+            end:
+                x: 99.5
+                y: 3.4
+        target_area:
+            start:
+                x: 102.0
+                y: 1.6
+            end:
+                x: 104.0
+                y: 3.4
+        desired_velocity: normal 1.34 0.26
+obstacles:
+    -   points:
+            -   x: -2.0
+                y: 1.5
+            -   x: 102.0
+                y: 1.5
+    -   points:
+            -   x: -2.0
+                y: 3.5
+            -   x: 102.0
+                y: 3.5
+desired_velocity_importance: 1.0
+turbulence_d0: 0.31
+turbulence_d1: 0.45
+turbulence_max_repulsion: 160.0
+turbulence_lambda: 0.25
+turbulence_exponent: 2

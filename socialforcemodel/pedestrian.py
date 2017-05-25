@@ -1,9 +1,13 @@
 import numpy as np
 from itertools import count
 from matplotlib.patches import Circle
+import matplotlib
+import matplotlib.pyplot as plt
 from .math import *
 from .area import Area
 import time
+from scipy.ndimage.interpolation import rotate
+from .pedestriannumba import calculate_pedestrian_repulsive_force
 
 
 class Pedestrian(object):
@@ -43,6 +47,7 @@ class Pedestrian(object):
         self.relaxation_time = relaxation_time
         self.target_is_point = True
         self.ornstein_uhlenbeck = False
+        self.desired_offset_angle = 0.0
 
         # Generate a spawn if not defined.
         if start is None:
@@ -58,7 +63,8 @@ class Pedestrian(object):
             self.target_path = target_path
 
         # Start with a velocity of zero.
-        velocity = self.desired_direction() * self.desired_velocity
+        self.desired_direction = self.get_desired_direction()
+        velocity = self.desired_direction * self.desired_velocity
         self.velocity = np.array([velocity[0],  velocity[1]])
 
         self.next_velocity = self.velocity
@@ -82,6 +88,9 @@ class Pedestrian(object):
             name: name of measurement
             value: value of measurement
         """
+        # if category != 'self':
+        #     return
+
         if category not in self.measurements[-1]:
             self.measurements[-1][category] = dict()
         self.measurements[-1][category][name] = value
@@ -100,13 +109,13 @@ class Pedestrian(object):
 
     def set_ornstein_uhlenbeck_process(self, mean, theta, sigma):
         """ Enable the Ornstein-Uhlenbeck process for deviating desired
-        velocity.
+        direction.
 
-        The desired velocity of the pedestrian will emulate brownian motion,
-        but will gravitate towards the mean desired velocity.
+        The desired direction of the pedestrian will emulate brownian motion,
+        but will gravitate towards the target.
 
         Args:
-            mean: the mean the process should gravitate towards
+            mean: mean angle offset, usually zero
             theta: scaling factor of difference with mean
             sigma: scaling factor of random variation
         """
@@ -138,7 +147,13 @@ class Pedestrian(object):
         position, velocity = self.calculate_position_and_velocity(
             step_size, obstacles)
 
-        position_point = np.array([position[0],  position[1]])
+        # In case of a continuous domain, check if the pedestrian has
+        # passed the boundaries. If so, move it.
+        if self.group.world.continuous_domain:
+            # Make a copy for future reference
+            copy = np.array(position)
+            position[0] = position[0] % self.group.world.width
+            position[1] = position[1] % self.group.world.height
 
         # Update own position and velocity.
         self.next_position = position
@@ -178,35 +193,45 @@ class Pedestrian(object):
                              maximum_velocity**2)
             velocity_new = velocity_new / factor
 
-        position_new = self.position + step_size * velocity_new
+        self_position = np.array(self.position)
+
+        position_new = self_position + step_size * velocity_new
 
         return position_new, velocity_new
 
     def update(self):
         """ Update the target_path and characteristics of this pedestrian. """
         if not self.quad.inside(self.next_position):
-            self.group.world.quadtree.remove(self)
+            try:
+                self.group.world.quadtree.remove(self)
+            except KeyError:
+                print self.position
+                print self.next_position
+                print self.quad.length
+                print self.quad.xmin
+                print self.quad.ymin
+                print self.group.world.quadtree.length
+                raise
 
         # Update position, velocity and speed.
         self.position = self.next_position
         self.velocity = self.next_velocity
         self.speed = self.next_speed
 
-        # Updated desired velocity.
+        # Updated desired velocity if Ornstein Uhlenbeck processes are enabled.
         if self.ornstein_uhlenbeck is not False:
-            mean, theta, sigma = self.ornstein_uhlenbeck
-            self.desired_velocity += (theta * (mean - self.desired_velocity) *
-                                      self.group.world.step_size + sigma *
-                                      np.random.normal())
+            # mean, theta, sigma = self.ornstein_uhlenbeck
 
+            mean, theta, sigma = self.ornstein_uhlenbeck
+
+            angle = (theta * (0 - self.desired_offset_angle) *
+                     self.group.world.step_size + sigma *
+                     np.random.normal())
+            self.desired_offset_angle += angle
+
+        # Make sure the pedestrian is inside the quadtree.
         if not self.quad:
             self.group.world.quadtree.add(self)
-
-        # In case of a continuous domain, check if the pedestrian has
-        # passed the boundaries. If so, move it.
-        if self.group.world.continuous_domain:
-            self.position[0] = self.position[0] % self.group.world.width
-            self.position[1] = self.position[1] % self.group.world.height
 
         if len(self.target_path) is 0:
             return
@@ -225,6 +250,8 @@ class Pedestrian(object):
                 if not obstructed:
                     self.target_path = self.target_path[1:]
 
+        self.desired_direction = self.get_desired_direction()
+
         # If there is only one target and it is within the threshold range,
         # remove it from this passenger.
         threshold = self.group.world.target_distance_threshold
@@ -235,6 +262,28 @@ class Pedestrian(object):
         if len(self.target_path):
             target = self.target_path[0]
             self.target = target
+
+    def get_desired_direction(self):
+        """ Finds and returns the desired direction of this pedestrian. """
+        target = self.target_path[0]
+
+        # If the target is an area, find the closest point.
+        if isinstance(target, Area):
+            target = target.get_closest_point(self.position)
+
+        # Calculate the desired direction
+        desired_dir = target - self.position
+
+        # Add a small angle to the desired direction.
+        if self.desired_offset_angle != 0.0:
+            # print self.desired_offset_angle
+            c = np.cos(self.desired_offset_angle)
+            s = np.sin(self.desired_offset_angle)
+            R = np.matrix([[c, -s],  [s, c]])
+            res = R.dot(desired_dir)
+            desired_dir = np.array([res[0, 0], res[0, 1]])
+
+        return desired_dir / np.linalg.norm(desired_dir)
 
     def arrived(self):
         """ Returns whether the pedestrian has arrived at its target. """
@@ -266,16 +315,6 @@ class Pedestrian(object):
         """ Set the desired velocity of this pedestrian. """
         self.desired_velocity = velocity
 
-    def desired_direction(self):
-        """ Get the desired direction of this pedestrian. """
-        target = self.target_path[0]
-
-        if isinstance(target, Area):
-            target = target.get_closest_point(self.position)
-
-        desired_dir = target - self.position
-        return desired_dir / np.linalg.norm(desired_dir)
-
     def calculate_force(self, obstacles):
         """ Calculates the sum of attractive and repulsive forces.
 
@@ -288,20 +327,74 @@ class Pedestrian(object):
         """
 
         # Get the pedestrians in the current neighbourhood.
-        tree = self.group.world.quadtree
-        threshold = self.group.world.interactive_distance_threshold
+        world = self.group.world
+        tree = world.quadtree
+        threshold = world.interactive_distance_threshold
         pedestrians = tree.get_pedestrians_in_range(self.position, threshold)
 
+        # If we are currently in a continuous domain, we may need to find
+        # neighbours on the other side of the domain.
+        if world.continuous_domain:
+
+            # For an x near the threshold
+            if self.position[0] - threshold < 0:
+                new_position = np.array(self.position)
+                new_position[0] = world.width
+                new_threshold = np.sqrt(threshold**2 - self.position[0]**2)
+                pedestrians = pedestrians.union(
+                    tree.get_pedestrians_in_range(new_position, new_threshold)
+                )
+
+            if self.position[0] + threshold > world.width:
+                new_position = np.array(self.position)
+                new_position[0] = 0
+                new_threshold = np.sqrt(threshold**2 - (
+                    world.width - self.position[0])**2)
+                pedestrians = pedestrians.union(
+                    tree.get_pedestrians_in_range(new_position, new_threshold)
+                )
+
+            # For a y near the threshold
+            if self.position[1] - threshold < 0:
+                new_position = np.array(self.position)
+                new_position[1] = world.height
+                new_threshold = np.sqrt(threshold**2 - self.position[1]**2)
+                pedestrians = pedestrians.union(
+                    tree.get_pedestrians_in_range(new_position, new_threshold)
+                )
+
+            if self.position[1] + threshold > world.height:
+                new_position = np.array(self.position)
+                new_position[1] = 0
+                new_threshold = np.sqrt(threshold**2 - (
+                    world.height - self.position[1])**2)
+                pedestrians = pedestrians.union(
+                    tree.get_pedestrians_in_range(new_position, new_threshold)
+                )
+
         # Calculate the forces and return the sum of forces.
-        attractive = self.calculate_attractive_force(pedestrians)
+        attractive = 1.5 * self.calculate_attractive_force(pedestrians)
         ped_repulsive = self.calculate_pedestrian_repulsive_force(pedestrians)
         ob_repulsive = self.calculate_obstacle_repulsive_force(obstacles)
+        total_force = attractive + self.group.repulsion_weight * (
+            ped_repulsive + ob_repulsive)
 
-        self.add_measurement('forces', 'attractive', attractive)
-        self.add_measurement('forces', 'pedestrian_repulsive', ped_repulsive)
-        self.add_measurement('forces', 'obstacle_repulsive', ob_repulsive)
+        random_force = np.zeros(2)
+        if world.velocity_variance_factor > 0.0:
+            stdev = world.velocity_variance_factor * world.step_size
+            random_force = np.random.normal(0.0, stdev, size=2)
 
-        return attractive + ped_repulsive + ob_repulsive
+        if self.id == 0:
+            len_force = np.sqrt(total_force[0]**2 + total_force[1]**2)
+            len_random = np.sqrt((total_force[0] + random_force[0])**2 +
+                                 (total_force[1] + random_force[1])**2)
+            self.add_measurement('self', 'random', len_random / len_force)
+
+        # self.add_measurement('forces', 'attractive', attractive)
+        # self.add_measurement('forces', 'pedestrian_repulsive', ped_repulsive)
+        # self.add_measurement('forces', 'obstacle_repulsive', ob_repulsive)
+
+        return total_force + random_force
 
     def calculate_attractive_force(self, pedestrians):
         """ Calculates the attractive force towards the next target.
@@ -310,7 +403,7 @@ class Pedestrian(object):
             np.array: attractive force towards target.
         """
 
-        desired_dir = self.desired_direction()
+        desired_dir = self.desired_direction
         velocity_factor = self.group.world.desired_velocity_importance
 
         # Calculate average velocity in neighbourhood.
@@ -343,25 +436,61 @@ class Pedestrian(object):
             np.array: sum of repulsive forces from all other pedestrians.
         """
 
-        # world = self.group.world
-        # p_position = []
-        # p_velocity = []
-        # p_radius = []
+        world = self.group.world
+        p_position = []
+        p_velocity = []
+        p_radius = []
 
-        # for p in pedestrians:
-        #     if p == self:
-        #         continue
+        for p in pedestrians:
+            if p == self:
+                continue
 
-        #     p_position.append(p.position)
-        #     p_velocity.append(p.radius)
-        #     p_radius.append(p.radius)
+            p_position.append(p.position)
+            p_velocity.append(p.radius)
+            p_radius.append(p.radius)
 
-        # return calculate_pedestrian_repulsive_force(
-        #     world.interactive_distance_threshold, self.position,
-        #           self.velocity,
-        #     self.radius, p_position, p_velocity, p_radius, world.width,
-        #     world.length, world.continuous_domain)
+        if len(p_position) == 0:
+            self.add_measurement('forces', 'local_density', 0.0)
+            self.add_measurement('forces', 'local_velocity_variance', 0.0)
+            return np.array([0.0, 0.0])
 
+        force_args = []
+        force_args.append(world.turbulence_max_repulsion)
+        force_args.append(world.turbulence_lambda)
+        force_args.append(world.turbulence_d0)
+        force_args.append(world.turbulence_d1)
+        force_args.append(float(world.body_force_constant))
+        force_args.append(float(world.friction_force_constant))
+
+        smoothing_squared = world.smoothing_parameter**2
+        smoothing_factor = 1.0 / (np.pi * smoothing_squared)
+        force_args.append(smoothing_squared)
+        force_args.append(smoothing_factor)
+
+        force = calculate_pedestrian_repulsive_force(
+            world.interactive_distance_threshold, self.position, self.velocity,
+            self.radius, self.speed, p_position, p_velocity, p_radius,
+            world.height, world.width, world.continuous_domain,
+            world.ignore_pedestrians_behind, self.desired_direction,
+            force_args, world.turbulence_exponent)
+
+        # print(force)
+        self.add_measurement('forces', 'local_density', force[2])
+        self.add_measurement('forces', 'local_velocity_variance',
+                             force[3])
+
+        return np.array([force[0], force[1]])
+
+    def calculate_pedestrian_repulsive_force_old(self, pedestrians):
+        """ Calculates the repulsive force with all others pedestrians.
+        This function is deprecated.
+
+        Args:
+            pedestrians: list of pedestrians in system.
+
+        Returns:
+            np.array: sum of repulsive forces from all other pedestrians.
+        """
         world = self.group.world
 
         # The following parameters were inspired by the Java SFM implementation
@@ -376,6 +505,8 @@ class Pedestrian(object):
         friction_forces = []
 
         force = np.zeros(2)
+        local_density = 0.0
+        local_velocity_variance = 0.0
 
         # Loop through all pedestrians.
         for p in pedestrians:
@@ -383,22 +514,28 @@ class Pedestrian(object):
             if p == self:
                 continue
 
+            p_position = np.array(p.position)
+
             # Calculate the distance.
             position = self.position
-            difference = p.position - position
+            difference = p_position - position
 
             # In case of a continuous domain, we should check if the 'wrapped'
             # distance is closer.
             if self.group.world.continuous_domain:
                 if difference[0] > 0.5 * self.group.world.width:
                     difference[0] = difference[0] - self.group.world.width
+                    p_position[0] -= self.group.world.width
                 elif difference[0] < - 0.5 * self.group.world.width:
                     difference[0] = difference[0] + self.group.world.width
+                    p_position[0] += self.group.world.width
 
-                if difference[1] > 0.5 * self.group.world.length:
-                    difference[1] = difference[1] - self.group.world.length
-                elif difference[1] < - 0.5 * self.group.world.length:
-                    difference[1] = difference[1] + self.group.world.length
+                if difference[1] > 0.5 * self.group.world.height:
+                    difference[1] = difference[1] - self.group.world.height
+                    p_position[1] -= self.group.world.height
+                elif difference[1] < - 0.5 * self.group.world.height:
+                    difference[1] = difference[1] + self.group.world.height
+                    p_position[1] += self.group.world.height
 
             distance_squared = difference[0]**2 + difference[1]**2
 
@@ -406,6 +543,17 @@ class Pedestrian(object):
             # amount of time in large groups.
             if distance_squared > distance_threshold:
                 continue
+
+            # In some cases, we want to ignore pedestrians that are 'behind' us
+            if self.group.world.ignore_pedestrians_behind:
+                # Calculate how far 'behind' the person is.
+                desired_dir = self.desired_direction
+                front_factor = (desired_dir[0] * difference[0] +
+                                desired_dir[1] * difference[1])
+                # print "{} -- {}: {}".format(self.id, p.id, front_factor)
+                # Check if the distance exceeds the sum of radi.
+                if front_factor < - self.radius - p.radius:
+                    continue
 
             distance = np.sqrt(distance_squared)
             neighbourhood_distances.append(distance)
@@ -417,12 +565,35 @@ class Pedestrian(object):
             difference_direction = difference / distance
 
             # Find normal and tangential of difference
-            normal = (position - p.position) / distance
+            normal = (position - p_position) / distance
             # normal[1] = -normal[1]
             tangential = np.array([-normal[1], normal[0]])
 
-            social_repulsion_force = repulsion_coefficient * np.exp(
-                agent_overlap / falloff_length)
+            # Method 1: Original
+            #####################
+            if not world.turbulence:
+                social_repulsion_force = repulsion_coefficient * np.exp(
+                    agent_overlap / falloff_length)
+
+            # Method 2: Turbulent force
+            ############################
+            else:
+                max_repulsive_force = world.turbulence_max_repulsion
+                labda = world.turbulence_lambda
+                k = world.turbulence_exponent
+                D_zero = world.turbulence_d0
+                D_one = world.turbulence_d1
+
+                try:
+                    factor = max(distance, 0.15)
+                    cos_angle = self.desired_direction * difference_direction
+                    omega = labda + (1 - labda) * (1 + cos_angle) / 2
+                    social_repulsion_force = (max_repulsive_force * omega *
+                                              np.exp(- factor / D_zero +
+                                                     (D_one / factor)**k))
+                except:
+                    print distance, cos_angle, omega
+                    raise
 
             pushing_force = 0
             friction_force = np.array([0, 0])
@@ -444,13 +615,24 @@ class Pedestrian(object):
                                    friction_force[1]**2))
 
             force += pedestrian_force
+            pressure = smoothing_factor * np.exp(-distance_squared /
+                                                 smoothing_squared)
 
-        self.add_measurement('neighbourhood', 'distances',
-                             neighbourhood_distances)
-        self.add_measurement('neighbourhood', 'num_neighbours',
-                             len(neighbourhood_distances))
-        self.add_measurement('forces', 'pushing', pushing_forces)
-        self.add_measurement('forces', 'friction', friction_forces)
+            local_density += pressure
+            local_velocity_variance += self.speed * pressure
+
+        if local_density != 0:
+            local_velocity_variance /= local_density
+
+        # self.add_measurement('neighbourhood', 'distances',
+        #                      neighbourhood_distances)
+        # self.add_measurement('neighbourhood', 'num_neighbours',
+        #                      len(neighbourhood_distances))
+        # self.add_measurement('forces', 'pushing', pushing_forces)
+        # self.add_measurement('forces', 'friction', friction_forces)
+        self.add_measurement('forces', 'local_density', local_density)
+        self.add_measurement('forces', 'local_velocity_variance',
+                             local_velocity_variance)
 
         return force
 
@@ -529,10 +711,14 @@ class Pedestrian(object):
             kwargs: pyplot keyword arguments
         """
 
+        red_blue = cm = plt.get_cmap('RdBu')
+        c_norm = matplotlib.colors.SymLogNorm(linthresh=0.03, linscale=0.03,
+                                              vmin=-1.0, vmax=1.0)
+        scalarmap = matplotlib.cm.ScalarMappable(norm=c_norm, cmap=red_blue)
+        core_color = scalarmap.to_rgba(self.speed - self.desired_velocity)
+
         ax.add_artist(Circle(xy=(self.position), radius=0.5 * self.diameter,
-                             color=color, fill=0))
-        # ax.plot(self.position[0], self.position[1], marker='o',
-        #         markersize=self.diameter, color=color)
+                             facecolor=core_color, edgecolor=color, fill=True))
         if add_quiver:
             ax.quiver(self.position[0], self.position[1],
                       self.velocity[0], self.velocity[1], angles='xy',
