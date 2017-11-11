@@ -217,7 +217,7 @@ class World(object):
 
         # Create a new plot and figure.
         plt.style.use('ggplot')
-        figure = plt.figure()
+        figure = plt.figure(figsize=(17, 17))
         ax = figure.add_subplot(1, 1, 1)
 
         # Scale plot to current world.
@@ -236,7 +236,7 @@ class World(object):
         for group in self.groups:
             for p in group.get_pedestrians():
                 p.plot(ax, color=colors[group.id % len(colors)],
-                       add_quiver=add_quiver)
+                       add_quiver=add_quiver, plot_target=False)
 
         # Plot all obstacles as lines.
         for obstacle in self.obstacles:

@@ -111,7 +111,10 @@ class ParameterLoader(object):
         # Parse target path
         if 'target_path' in data:
             for item in data['target_path']:
-                group.add_path_node(self.parse_point(item))
+                if 'start' in item:
+                    group.add_path_node(self.parse_area(item))
+                else:
+                    group.add_path_node(self.parse_point(item))
 
         # Parse pedestrians.
         if 'pedestrians' in data:

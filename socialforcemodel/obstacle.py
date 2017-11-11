@@ -1,6 +1,6 @@
 import numpy as np
 from .area import Area
-
+from .math import *
 
 class Obstacle(object):
     """ Obstacle class for the social force model.
@@ -88,6 +88,7 @@ class Obstacle(object):
                 xdiff = min(abs(self.max[0] - pos[0]),
                             abs(self.min[0] - pos[0]))
                 if xdiff > threshold:
+                    # print "C: distance exceeds threshold"
                     return None, None
 
                 if pos[1] > self.max[1] or pos[1] < self.min[1]:
@@ -97,11 +98,14 @@ class Obstacle(object):
                                 abs(self.min[1] - pos[1]))
                     distance = np.sqrt(xdiff**2 + ydiff**2)
                     if distance > threshold:
+                        # print "A: distance exceeds threshold"
                         return None, None
-            else:
+            elif pos[1] > self.max[1] or pos[1] < self.min[1]:
                 ydiff = min(abs(self.max[1] - pos[1]),
                             abs(self.min[1] - pos[1]))
                 if ydiff > threshold:
+                    # print "B: distance exceeds threshold"
+                    # print self.min, self.max
                     return None, None
 
         # Loop through all pairs of points and for each line, find the point
@@ -115,9 +119,13 @@ class Obstacle(object):
         for first, second in self.pairs():
 
             difference = second - first
-            length_squared = np.linalg.norm(difference)**2
-            ratio = max(0, min(1, np.dot(pos - first, difference) /
-                               length_squared))
+            try:
+                ratio = max(0, min(1, np.dot(pos - first, difference) /
+                               length_squared(difference)))
+            except:
+                print second, first
+                print self.points
+                raise
             projection = first + ratio * difference
             distance = np.linalg.norm(pos - projection)
 
@@ -182,21 +190,46 @@ class Obstacle(object):
             diff_p = first_a - first_b
             dap = perp(diff_a)
             denom = np.dot(dap, diff_b)
+
+            # If the dot product is 0, this means that the two lines are
+            # perpendicular.
+            if denom == 0:
+                return [np.inf, np.inf]
+
             num = np.dot(dap, diff_p)
             return (num / denom.astype(float)) * diff_b + first_b
 
         smallest_distance = np.inf
         closest_point = None
+        goal_distance = np.sqrt(length_squared(p2 - p1))
 
         for start, end in self.pairs():
-            intersection = seg_intersect(start, end, p1, p2)
+            inter = seg_intersect(start, end, p1, p2)
 
-            if intersection[0] == np.inf or intersection[1] == np.inf:
+            if inter[0] == np.inf or inter[1] == np.inf:
                 continue
 
-            if np.linalg.norm(intersection - p1) < smallest_distance:
-                smallest_distance = np.linalg.norm(intersection - p1)
-                closest_point = np.array([intersection[0], intersection[1]])
+            # First check if the distance is potentially smaller.
+            if np.linalg.norm(inter - p1) < smallest_distance:
+                # print start, end, p1, p2, "\t", inter[0], inter[1]
+                # print (inter[0] > start[0]) != (inter[0] > end[0]), (inter[1] > start[1]) != (inter[1] > end[1]), (inter[0] > p1[0]) != (inter[0] > p2[0]), (inter[1] > p1[1]) != (inter[1] > p2[1])
+                # Second, make sure the point actually lies between both start
+                # and end, and p1 and p2. We do this by checking the fact that
+                # the sum of the distance to both points should be roughly
+                # equal to the distance between those two points.
+                segment_length = np.sqrt(length_squared(end - start))
+                inter_segment_sum = (np.sqrt(length_squared(end - inter)) + 
+                                     np.sqrt(length_squared(start - inter)))
+                inter_goal_sum = (np.sqrt(length_squared(p2 - inter)) +
+                                  np.sqrt(length_squared(p1 - inter)))
+
+                if (abs(inter_segment_sum - segment_length) < 0.001 and
+                    abs(inter_goal_sum - goal_distance) < 0.001):
+                    # print "Success"
+                    smallest_distance = np.linalg.norm(inter - p1)
+                    closest_point = np.array([inter[0], inter[1]])
+                    # print start, end, inter
+                # print ""
 
         if closest_point is not None:
             return closest_point

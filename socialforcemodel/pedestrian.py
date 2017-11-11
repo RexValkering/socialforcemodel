@@ -48,6 +48,7 @@ class Pedestrian(object):
         self.target_is_point = True
         self.ornstein_uhlenbeck = False
         self.desired_offset_angle = 0.0
+        self.closest_obstacle_points = []
 
         # Generate a spawn if not defined.
         if start is None:
@@ -62,6 +63,9 @@ class Pedestrian(object):
         else:
             self.target_path = target_path
 
+        self.target_index = 0
+        self.target = self.target_path[self.target_index]
+
         # Start with a velocity of zero.
         self.desired_direction = self.get_desired_direction()
         velocity = self.desired_direction * self.desired_velocity
@@ -75,7 +79,6 @@ class Pedestrian(object):
         # Make sure this pedestrian is in the group.
         if group:
             group.add_pedestrian(self)
-        self.target = self.target_path[0]
 
         # Create a measurement history object to be filled on 'update'.
         self.measurements = []
@@ -199,6 +202,29 @@ class Pedestrian(object):
 
         return position_new, velocity_new
 
+    def goal_obstructed(self, goal):
+        """ Check whether the path to a goal is obstructed by obstacles. """
+        pos = np.array(self.position)
+        if isinstance(goal, Area):
+            goal = goal.get_closest_point(pos)
+        
+        goal_vec = goal - pos
+        if length_squared(goal_vec) < 0.0001:
+            return False
+
+        goal_vec /= np.sqrt(length_squared(goal_vec))
+        goal_vec_perp = np.array([goal_vec[1], -goal_vec[0]])
+        pos_upper = pos + self.radius * goal_vec_perp
+        pos_lower = pos - self.radius * goal_vec_perp
+
+        for obstacle in self.group.world.obstacles:
+            result_upper = obstacle.intersects(pos_upper, goal)
+            result_lower = obstacle.intersects(pos_lower, goal)
+            if result_upper is not None or result_lower is not None:
+                return True
+
+        return False
+
     def update(self):
         """ Update the target_path and characteristics of this pedestrian. """
         if not self.quad.inside(self.next_position):
@@ -233,39 +259,55 @@ class Pedestrian(object):
         if not self.quad:
             self.group.world.quadtree.add(self)
 
-        if len(self.target_path) is 0:
+        # If the target index is out of range, we have reached our destination.
+        if len(self.target_path) == self.target_index:
             return
 
-        if len(self.target_path) > 1:
+        # First check if the current target is not obstructed. If it is, work
+        # back through the target path to find the closest previous target that
+        # is unobstructed.
+        while True:
+            obstructed = self.goal_obstructed(self.target)
+
+            if obstructed:
+                if self.target_index == 0:
+                    # print "Error ({}): path obstructed.".format(self.id)
+                    break
+                else:
+                    self.target_index -= 1
+                    self.target = self.target_path[self.target_index]
+            else:
+                break
+
+        # Find the next target that is not obstructed.
+        if len(self.target_path) - self.target_index > 1:
             # Look for another target that is not obstructed from view.
             obstructed = False
-            while not obstructed and len(self.target_path) > 1:
-                next_target = self.target_path[1]
-                for obstacle in self.group.world.obstacles:
-                    result = obstacle.intersects(self.position, next_target)
-                    if result is not None:
-                        obstructed = True
-                        break
+            while not obstructed and len(self.target_path) - self.target_index > 1:
+                next_target = self.target_path[self.target_index + 1]
+                obstructed = self.goal_obstructed(next_target)
 
                 if not obstructed:
-                    self.target_path = self.target_path[1:]
+                    self.target_index += 1
+                    self.target = self.target_path[self.target_index]
 
         self.desired_direction = self.get_desired_direction()
 
         # If there is only one target and it is within the threshold range,
         # remove it from this passenger.
         threshold = self.group.world.target_distance_threshold
-        if len(self.target_path) == 1:
+        if len(self.target_path) - self.target_index == 1:
             if self.distance_to_target() < threshold:
-                self.target_path = []
+                self.target_index += 1
+                self.target = None
 
-        if len(self.target_path):
-            target = self.target_path[0]
-            self.target = target
+        # if len(self.target_path) > self.target_index:
+        #     target = self.target_path[self.target_index]
+        #     self.target = target
 
     def get_desired_direction(self):
         """ Finds and returns the desired direction of this pedestrian. """
-        target = self.target_path[0]
+        target = self.target
 
         # If the target is an area, find the closest point.
         if isinstance(target, Area):
@@ -273,6 +315,11 @@ class Pedestrian(object):
 
         # Calculate the desired direction
         desired_dir = target - self.position
+
+        # If the target equals position, return a zero vector
+        if length_squared(desired_dir) < 0.001:
+            print "Warning: target equals position"
+            return desired_dir
 
         # Add a small angle to the desired direction.
         if self.desired_offset_angle != 0.0:
@@ -287,24 +334,26 @@ class Pedestrian(object):
 
     def arrived(self):
         """ Returns whether the pedestrian has arrived at its target. """
-        if len(self.target_path) > 1:
+        if self.target_index == len(self.target_path):
+            return True
+
+        if self.target_index + 1 < len(self.target_path):
             return False
 
-        if len(self.target_path) > 0 and isinstance(self.target_path[0], Area):
+        if isinstance(self.target, Area):
             return self.group.target_area.in_area(self.position)
 
-        if self.target_path == [] or self.distance_to_target() < \
-                self.group.world.target_distance_threshold:
+        if self.distance_to_target() < self.group.world.target_distance_threshold:
             return True
 
         return False
 
     def distance_to_target(self):
         """ Returns the distance to the current target. """
-        if self.target_path == []:
+        if self.target_index == len(self.target_path):
             return 0.0
 
-        target = self.target_path[0]
+        target = self.target
 
         if isinstance(target, Area):
             target = target.get_closest_point(self.position)
@@ -653,6 +702,8 @@ class Pedestrian(object):
         body_force_constant = world.body_force_constant
         friction_force_constant = world.friction_force_constant
 
+        self.closest_obstacle_points = []
+
         distance_threshold = 2.0
 
         force = np.zeros(2)
@@ -666,6 +717,8 @@ class Pedestrian(object):
                                                         distance_threshold)
             if obstacle_position is None:
                 continue
+
+            self.closest_obstacle_points.append(obstacle_position)
 
             difference = obstacle_position - position
 
@@ -711,17 +764,27 @@ class Pedestrian(object):
             kwargs: pyplot keyword arguments
         """
 
-        red_blue = cm = plt.get_cmap('RdBu')
-        c_norm = matplotlib.colors.SymLogNorm(linthresh=0.03, linscale=0.03,
-                                              vmin=-1.0, vmax=1.0)
-        scalarmap = matplotlib.cm.ScalarMappable(norm=c_norm, cmap=red_blue)
-        core_color = scalarmap.to_rgba(self.speed - self.desired_velocity)
+        # red_blue = cm = plt.get_cmap('RdBu')
+        # c_norm = matplotlib.colors.SymLogNorm(linthresh=0.03, linscale=0.03,
+        #                                       vmin=-1.0, vmax=1.0)
+        # scalarmap = matplotlib.cm.ScalarMappable(norm=c_norm, cmap=red_blue)
+        # core_color = scalarmap.to_rgba(self.speed - self.desired_velocity)
+
+        c = 'white'
+        if self.speed < 0.01:
+            c = 'red'
 
         ax.add_artist(Circle(xy=(self.position), radius=0.5 * self.diameter,
-                             facecolor=core_color, edgecolor=color, fill=True))
+                             facecolor=c, edgecolor=color, fill=True))
         if add_quiver:
             ax.quiver(self.position[0], self.position[1],
                       self.velocity[0], self.velocity[1], angles='xy',
                       scale_units='xy', color=color)
         if plot_target:
-            ax.scatter(self.target_path[0][0], self.target_path[0][1])
+            target = self.target
+            if isinstance(target, Area):
+                target = target.get_closest_point(self.position)
+            ax.scatter(target[0], target[1])
+            ax.plot([self.position[0], target[0]], [self.position[1], target[1]], alpha=0.3)
+            for o in self.closest_obstacle_points:
+                ax.plot([self.position[0], o[0]], [self.position[1], o[1]])
