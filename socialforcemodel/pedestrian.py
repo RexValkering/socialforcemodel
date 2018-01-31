@@ -142,6 +142,12 @@ class Pedestrian(object):
             self.next_velocity = np.array([0.0, 0.0])
             return
 
+        braking_chance = self.group.world.braking_chance
+
+        if braking_chance > 0 and random.random() < braking_chance:
+            self.next_velocity = np.array([0.0, 0.0])
+            return
+
         self.measurements.append({})
         self.add_measurement('self', 'time', self.group.world.time)
 
@@ -454,21 +460,30 @@ class Pedestrian(object):
 
         desired_dir = self.desired_direction
         velocity_factor = self.group.world.desired_velocity_importance
+        # braking_chance = self.group.world.braking_chance
+        preferred_velocity = np.array([0.0, 0.0])
 
         # Calculate average velocity in neighbourhood.
         average_speed = 0.0
-        if len(pedestrians):
+        if velocity_factor < 1.0 and len(pedestrians):
             for p in pedestrians:
                 average_speed += p.speed
             average_speed /= len(pedestrians)
         else:
             velocity_factor = 1.0
 
+        # There might be a chance the pedestrian radndomly brakes.
+        # In that case, set preferred_velocity to (0, 0).
+        # if braking_chance > 0 and random.random() < braking_chance:
+        #     pass
+        # else:
+
         # Calculate the preferred velocity, which consists of a weighted
-        # sum of the desired velocity towards target, and the average velocity.
+        # sum of the desired velocity towards target and the average
+        # velocity.
         preferred_velocity = ((velocity_factor * self.desired_velocity *
-                              desired_dir) + (1 - velocity_factor) *
-                              average_speed)
+                          desired_dir) + (1 - velocity_factor) *
+                          average_speed)
 
         attractive_force = (- self.mass * (self.velocity -
                             preferred_velocity) / self.relaxation_time)

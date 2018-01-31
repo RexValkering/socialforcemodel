@@ -63,6 +63,9 @@ class World(object):
         self.turbulence_lambda = 0.25
         self.turbulence_exponent = 2
 
+        # Random braking experiment
+        self.braking_chance = 0.0
+
     def set_height(self, height):
         self.height = height
 
@@ -134,6 +137,9 @@ class World(object):
 
     def set_turbulence_exponent(self, value):
         self.turbulence_exponent = value
+
+    def set_braking_chance(self, value):
+        self.braking_chance = value
 
     def height(self):
         """ Get the height (y-direction) of this world. """

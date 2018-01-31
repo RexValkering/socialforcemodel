@@ -52,7 +52,8 @@ class ParameterLoader(object):
             'turbulence_d1': world.set_turbulence_d1,
             'turbulence_max_repulsion': world.set_turbulence_max_repulsion,
             'turbulence_lambda': world.set_turbulence_lambda,
-            'turbulence_exponent': world.set_turbulence_exponent
+            'turbulence_exponent': world.set_turbulence_exponent,
+            'braking_chance': world.set_braking_chance
         }
 
         # Parse world dimensions and characteristics
