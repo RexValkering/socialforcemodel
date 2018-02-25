@@ -147,7 +147,7 @@ class Pedestrian(object):
 
         braking_chance = self.group.world.braking_chance
         if braking_chance > 0 and np.random.random() < braking_chance:
-            print("{}: Braking {}".format(self.group.world.time, self.id))
+            # print("{}: Braking {}".format(self.group.world.time, self.id))
             self.desired_velocity = 0.0
             self.is_braking = True
 
@@ -249,13 +249,13 @@ class Pedestrian(object):
                 raise
 
         # Determine whether braking should stop.
-        if self.is_braking:
-            print("{}: Speed {} = {} (next: {})".format(self.group.world.time, self.id, self.speed, self.next_speed))
+        # if self.is_braking:
+        #    print("{}: Speed {} = {} (next: {})".format(self.group.world.time, self.id, self.speed, self.next_speed))
 
         if self.is_braking and (self.speed != self.next_speed and self.speed / self.next_speed < 1.5):     
-            print("{}: Stopped braking {}".format(self.group.world.time, self.id))
+        #    print("{}: Stopped braking {}".format(self.group.world.time, self.id))
             self.is_braking = False
-            print("-- {} -> {}".format(self.desired_velocity, self.original_desired_velocity))
+        #    print("-- {} -> {}".format(self.desired_velocity, self.original_desired_velocity))
             self.desired_velocity = self.original_desired_velocity
 
         # Update position, velocity and speed.
@@ -337,7 +337,7 @@ class Pedestrian(object):
 
         # If the target equals position, return a zero vector
         if length_squared(desired_dir) < 0.001:
-            print "Warning: target equals position"
+            # print "Warning: target equals position"
             return desired_dir
 
         # Add a small angle to the desired direction.
