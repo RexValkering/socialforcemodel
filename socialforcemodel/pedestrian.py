@@ -49,6 +49,8 @@ class Pedestrian(object):
         self.ornstein_uhlenbeck = False
         self.desired_offset_angle = 0.0
         self.closest_obstacle_points = []
+        self.is_braking = False
+        self.original_desired_velocity = desired_velocity
 
         # Generate a spawn if not defined.
         if start is None:
@@ -140,13 +142,14 @@ class Pedestrian(object):
 
         if len(self.target_path) == 0:
             self.next_velocity = np.array([0.0, 0.0])
+            self.next_speed = 0.0
             return
 
         braking_chance = self.group.world.braking_chance
-
-        if braking_chance > 0 and random.random() < braking_chance:
-            self.next_velocity = np.array([0.0, 0.0])
-            return
+        if braking_chance > 0 and np.random.random() < braking_chance:
+            print("{}: Braking {}".format(self.group.world.time, self.id))
+            self.desired_velocity = 0.0
+            self.is_braking = True
 
         self.measurements.append({})
         self.add_measurement('self', 'time', self.group.world.time)
@@ -245,10 +248,20 @@ class Pedestrian(object):
                 print self.group.world.quadtree.length
                 raise
 
+        # Determine whether braking should stop.
+        if self.is_braking:
+            print("{}: Speed {} = {} (next: {})".format(self.group.world.time, self.id, self.speed, self.next_speed))
+
+        if self.is_braking and (self.speed != self.next_speed and self.speed / self.next_speed < 1.5):     
+            print("{}: Stopped braking {}".format(self.group.world.time, self.id))
+            self.is_braking = False
+            print("-- {} -> {}".format(self.desired_velocity, self.original_desired_velocity))
+            self.desired_velocity = self.original_desired_velocity
+
         # Update position, velocity and speed.
         self.position = self.next_position
         self.velocity = self.next_velocity
-        self.speed = self.next_speed
+        self.speed = self.next_speed 
 
         # Updated desired velocity if Ornstein Uhlenbeck processes are enabled.
         if self.ornstein_uhlenbeck is not False:
@@ -431,6 +444,12 @@ class Pedestrian(object):
         attractive = 1.5 * self.calculate_attractive_force(pedestrians)
         ped_repulsive = self.calculate_pedestrian_repulsive_force(pedestrians)
         ob_repulsive = self.calculate_obstacle_repulsive_force(obstacles)
+
+        # Ignore other pedestrians if braking.
+        if self.is_braking:
+            print attractive, ped_repulsive, ob_repulsive
+            ped_repulsive = np.array([0.0, 0.0])
+
         total_force = attractive + self.group.repulsion_weight * (
             ped_repulsive + ob_repulsive)
 
@@ -786,7 +805,7 @@ class Pedestrian(object):
         # core_color = scalarmap.to_rgba(self.speed - self.desired_velocity)
 
         c = 'white'
-        if self.speed < 0.01:
+        if self.speed < 0.2:
             c = 'red'
 
         ax.add_artist(Circle(xy=(self.position), radius=0.5 * self.diameter,

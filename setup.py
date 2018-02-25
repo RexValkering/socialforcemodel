@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='socialforcemodel',
-      version='0.12',
+      version='0.13',
       description='A python implementation of the Social Force Model',
       classifiers=[
           'Development Status :: 1 - Planning',
@@ -15,7 +15,12 @@ setup(name='socialforcemodel',
       packages=['socialforcemodel'],
       install_requires=[
           'numpy',
+          'scipy',
           'matplotlib',
-          'pyyaml'
+          'pyyaml',
+          'progressbar',
+          'pympler',
+          'psutil',
+          'numba'
       ],
       zip_safe=False)
