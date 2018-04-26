@@ -286,6 +286,8 @@ class Group(object):
         # Spawn new pedestrians based on the spawn rate.
         if self.spawn_rate and (self.spawn_max is None or
                                 len(self.pedestrians) < self.spawn_max):
+            # Make sure we don't spawn more pedestrians than the limit.
+            max_spawned = self.spawn_max - len(self.pedestrians)
             poisson_lambda = self.spawn_rate * self.world.step_size
-            for s in range(np.random.poisson(poisson_lambda)):
+            for s in range(min(max_spawned, np.random.poisson(poisson_lambda))):
                 self.spawn_pedestrian()

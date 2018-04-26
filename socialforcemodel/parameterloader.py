@@ -85,7 +85,8 @@ class ParameterLoader(object):
             'relaxation_time': group.set_relaxation_time,
             'spawn_rate': group.set_spawn_rate,
             'start_time': group.set_start_time,
-            'repulsion_weight': group.set_repulsion_weight
+            'repulsion_weight': group.set_repulsion_weight,
+            'spawn_max': group.set_spawn_max
         }
 
         # Parse group characteristics

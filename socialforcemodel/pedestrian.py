@@ -441,7 +441,7 @@ class Pedestrian(object):
                 )
 
         # Calculate the forces and return the sum of forces.
-        attractive = 1.5 * self.calculate_attractive_force(pedestrians)
+        attractive = self.calculate_attractive_force(pedestrians)
         ped_repulsive = self.calculate_pedestrian_repulsive_force(pedestrians)
         ob_repulsive = self.calculate_obstacle_repulsive_force(obstacles)
 
@@ -462,7 +462,10 @@ class Pedestrian(object):
             len_force = np.sqrt(total_force[0]**2 + total_force[1]**2)
             len_random = np.sqrt((total_force[0] + random_force[0])**2 +
                                  (total_force[1] + random_force[1])**2)
-            self.add_measurement('self', 'random', len_random / len_force)
+            if len_force > 0.001:
+                self.add_measurement('self', 'random', len_random / len_force)
+            else:
+                self.add_measurement('self', 'random', 0.0)
 
         # self.add_measurement('forces', 'attractive', attractive)
         # self.add_measurement('forces', 'pedestrian_repulsive', ped_repulsive)
@@ -483,11 +486,11 @@ class Pedestrian(object):
         preferred_velocity = np.array([0.0, 0.0])
 
         # Calculate average velocity in neighbourhood.
-        average_speed = 0.0
+        average_velocity = np.array([0.0, 0.0])
         if velocity_factor < 1.0 and len(pedestrians):
             for p in pedestrians:
-                average_speed += p.speed
-            average_speed /= len(pedestrians)
+                average_velocity += p.velocity
+            average_velocity /= len(pedestrians)
         else:
             velocity_factor = 1.0
 
@@ -502,7 +505,7 @@ class Pedestrian(object):
         # velocity.
         preferred_velocity = ((velocity_factor * self.desired_velocity *
                           desired_dir) + (1 - velocity_factor) *
-                          average_speed)
+                          average_velocity)
 
         attractive_force = (- self.mass * (self.velocity -
                             preferred_velocity) / self.relaxation_time)
