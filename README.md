@@ -1,6 +1,6 @@
 This package contains a Python implementation of the Helbing-Molnár-Farkas-Vicsek Social Force Model. The code was created for a master thesis and is still in active development.
 
-Feel free to clone or fork. For questions regarding the model you can contact me at <myfullname> at gmail dot com.
+Feel free to clone or fork. For questions regarding the model you can contact me at *[myfullname] at gmail dot com*.
 
 ### Installation
 
