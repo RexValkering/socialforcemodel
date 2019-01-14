@@ -46,7 +46,7 @@ class MeasureBarrier(Obstacle):
         if (((direction == 'up' or direction == 'down') and normal[1] == 0) or
                 ((direction == 'left' or direction == 'right') and
                     normal[0] == 0)):
-            print "Incorrect direction supplied for barrier."
+            print("Incorrect direction supplied for barrier.")
             return
 
         # Determine the points.
