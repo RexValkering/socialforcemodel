@@ -22,6 +22,7 @@ groups:
                       x: 3
                       y: 3
 obstacles:
+    # Horizontal lines, "walls"
     -   points:
             -   x: -2.0
                 y: 0.1
@@ -32,7 +33,7 @@ obstacles:
                 y: 4.9
             -   x: 10.0
                 y: 4.9
-
+    # Vertical lines with space in between, "door"
     -   points:
             -   x: 10
                 y: 0
@@ -43,7 +44,7 @@ obstacles:
                 y: 3
             -   x: 10
                 y: 5
-
+    # vertical lines, "tables", grouped
     -   points:
             -   x: 2.5
                 y: 2
