@@ -12,15 +12,121 @@ groups:
                 y: 2.9
         num_pedestrians: 0
         pedestrians:
+# last row of 'tables'
               - start:
-                      x: 2
-                      y: 2
+                      x: 1
+                      y: 0.33
               - start:
-                      x: 4
-                      y: 4
+                      x: 1
+                      y: 0.66
               - start:
-                      x: 3
-                      y: 3
+                      x: 1
+                      y: 2.33
+              - start:
+                      x: 1
+                      y: 2.66
+              - start:
+                      x: 1
+                      y: 4.33
+              - start:
+                      x: 1
+                      y: 4.66
+              # second to last row of 'tables'
+              - start:
+                      x: 3.5
+                      y: 0.33
+              - start:
+                      x: 3.5
+                      y: 0.66
+              - start:
+                      x: 3.5
+                      y: 2.33
+              - start:
+                      x: 3.5
+                      y: 2.66
+              - start:
+                      x: 3.5
+                      y: 4.33
+              - start:
+                      x: 3.5
+                      y: 4.66
+
+              - start:
+                      x: 2.25
+                      y: 0.33
+              - start:
+                      x: 2.25
+                      y: 0.66
+              - start:
+                      x: 2.25
+                      y: 2.33
+              - start:
+                      x: 2.25
+                      y: 2.66
+              - start:
+                      x: 2.25
+                      y: 4.33
+              - start:
+                      x: 2.25
+                      y: 4.66
+
+
+              - start:
+                      x: 4.75
+                      y: 0.33
+              - start:
+                      x: 4.75
+                      y: 0.66
+              - start:
+                      x: 4.75
+                      y: 2.33
+              - start:
+                      x: 4.75
+                      y: 2.66
+              - start:
+                      x: 4.75
+                      y: 4.33
+              - start:
+                      x: 4.75
+                      y: 4.66
+            # LAST ROW
+              - start:
+                      x: 7.25
+                      y: 0.33
+              - start:
+                      x: 7.25
+                      y: 0.66
+              - start:
+                      x: 7.25
+                      y: 2.33
+              - start:
+                      x: 7.25
+                      y: 2.66
+              - start:
+                      x: 7.25
+                      y: 4.33
+              - start:
+                      x: 7.25
+                      y: 4.66
+            # 2nd last ROW
+              - start:
+                      x: 6
+                      y: 0.33
+              - start:
+                      x: 6
+                      y: 0.66
+              - start:
+                      x: 6
+                      y: 2.33
+              - start:
+                      x: 6
+                      y: 2.66
+              - start:
+                      x: 6
+                      y: 4.33
+              - start:
+                      x: 6
+                      y: 4.66
 obstacles:
     # Horizontal lines, "walls"
     -   points:
