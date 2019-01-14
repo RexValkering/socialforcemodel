@@ -5,8 +5,8 @@ import os
 
 try:
     import progressbar
-except ImportError, e:
-    print "Progressbar package not found. Please run 'pip install progressbar'"
+except ImportError as e:
+    print("Progressbar package not found. Please run 'pip install progressbar'")
     exit()
 
 

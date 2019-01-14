@@ -123,8 +123,8 @@ class Obstacle(object):
                 ratio = max(0, min(1, np.dot(pos - first, difference) /
                                length_squared(difference)))
             except:
-                print second, first
-                print self.points
+                print(second, first)
+                print(self.points)
                 raise
             projection = first + ratio * difference
             distance = np.linalg.norm(pos - projection)

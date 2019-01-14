@@ -37,7 +37,7 @@ class Pedestrian(object):
     def __init__(self, group=None, radius=0.15, mass=60, desired_velocity=1.3,
                  maximum_velocity=2.6, relaxation_time=2.0, start=None,
                  target_path=[]):
-        self.id = self._ids.next()
+        self.id = next(self._ids)
         self.group = group
         self.diameter = 2 * radius
         self.radius = radius
@@ -240,12 +240,12 @@ class Pedestrian(object):
             try:
                 self.group.world.quadtree.remove(self)
             except KeyError:
-                print self.position
-                print self.next_position
-                print self.quad.length
-                print self.quad.xmin
-                print self.quad.ymin
-                print self.group.world.quadtree.length
+                print(self.position)
+                print(self.next_position)
+                print(self.quad.length)
+                print(self.quad.xmin)
+                print(self.quad.ymin)
+                print(self.group.world.quadtree.length)
                 raise
 
         # Determine whether braking should stop.
@@ -447,7 +447,7 @@ class Pedestrian(object):
 
         # Ignore other pedestrians if braking.
         if self.is_braking:
-            print attractive, ped_repulsive, ob_repulsive
+            print(attractive, ped_repulsive, ob_repulsive)
             ped_repulsive = np.array([0.0, 0.0])
 
         total_force = attractive + self.group.repulsion_weight * (
@@ -675,7 +675,7 @@ class Pedestrian(object):
                                               np.exp(- factor / D_zero +
                                                      (D_one / factor)**k))
                 except:
-                    print distance, cos_angle, omega
+                    print(distance, cos_angle, omega)
                     raise
 
             pushing_force = 0
