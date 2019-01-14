@@ -2,14 +2,7 @@ world_height: 5
 world_width: 10
 step_size: 0.02
 groups:
-    -   spawn_rate: 2
-        spawn_area:
-            start:
-                x: -1.0
-                y: 2.1
-            end:
-                x: -0.5
-                y: 3.4
+    -   spawn_rate: 0
         target_area:
             start:
                 x: 10.0
@@ -17,6 +10,17 @@ groups:
             end:
                 x: 12.0
                 y: 2.9
+        num_pedestrians: 0
+        pedestrians:
+              - start:
+                      x: 2
+                      y: 2
+              - start:
+                      x: 4
+                      y: 4
+              - start:
+                      x: 3
+                      y: 3
 obstacles:
     -   points:
             -   x: -2.0
