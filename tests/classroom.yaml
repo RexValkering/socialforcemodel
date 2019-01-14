@@ -1,0 +1,137 @@
+world_height: 5
+world_width: 10
+step_size: 0.02
+groups:
+    -   spawn_rate: 2
+        spawn_area:
+            start:
+                x: -1.0
+                y: 2.1
+            end:
+                x: -0.5
+                y: 3.4
+        target_area:
+            start:
+                x: 10.0
+                y: 2.1
+            end:
+                x: 12.0
+                y: 2.9
+obstacles:
+    -   points:
+            -   x: -2.0
+                y: 0.1
+            -   x: 10.0
+                y: 0.1
+    -   points:
+            -   x: -2.0
+                y: 4.9
+            -   x: 10.0
+                y: 4.9
+
+    -   points:
+            -   x: 10
+                y: 0
+            -   x: 10
+                y: 2
+    -   points:
+            -   x: 10
+                y: 3
+            -   x: 10
+                y: 5
+
+    -   points:
+            -   x: 2.5
+                y: 2
+            -   x: 2.5
+                y: 3
+    -   points:
+            -   x: 2.5
+                y: 0
+            -   x: 2.5
+                y: 1
+    -   points:
+            -   x: 2.5
+                y: 4
+            -   x: 2.5
+                y: 5
+
+    -   points:
+            -   x: 5
+                y: 2
+            -   x: 5
+                y: 3
+    -   points:
+            -   x: 5
+                y: 0
+            -   x: 5
+                y: 1
+    -   points:
+            -   x: 5
+                y: 4
+            -   x: 5
+                y: 5
+
+    -   points:
+            -   x: 7.5
+                y: 2
+            -   x: 7.5
+                y: 3
+    -   points:
+            -   x: 7.5
+                y: 0
+            -   x: 7.5
+                y: 1
+    -   points:
+            -   x: 7.5
+                y: 4
+            -   x: 7.5
+                y: 5
+
+    -   points:
+            -   x: 6.25
+                y: 2
+            -   x: 6.25
+                y: 3
+    -   points:
+            -   x: 6.25
+                y: 0
+            -   x: 6.25
+                y: 1
+    -   points:
+            -   x: 6.25
+                y: 4
+            -   x: 6.25
+                y: 5
+
+    -   points:
+            -   x: 1.25
+                y: 2
+            -   x: 1.25
+                y: 3
+    -   points:
+            -   x: 1.25
+                y: 0
+            -   x: 1.25
+                y: 1
+    -   points:
+            -   x: 1.25
+                y: 4
+            -   x: 1.25
+                y: 5
+
+    -   points:
+            -   x: 3.75
+                y: 2
+            -   x: 3.75
+                y: 3
+    -   points:
+            -   x: 3.75
+                y: 0
+            -   x: 3.75
+                y: 1
+    -   points:
+            -   x: 3.75
+                y: 4
+            -   x: 3.75
+                y: 5
