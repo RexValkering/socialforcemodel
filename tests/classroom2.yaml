@@ -12,14 +12,11 @@ groups:
                 x: 10
                 y: 2.6
         target_path:
-            -   x: 7
-                y: 3.5
-            -   x: 7
-                y: 1.5
+            -   x: 7.5
+                y: 2.5
             -   x: 10
-                y: 1.5
-            -   x: 10.0
-                y: 3.5
+                y: 2.5
+
 
         num_pedestrians: 0
         pedestrians:
@@ -30,12 +27,12 @@ groups:
               - start:
                       x: 1
                       y: 0.66
-              - start:
-                      x: 1
-                      y: 2.33
-              - start:
-                      x: 1
-                      y: 2.66
+#              - start:
+#                      x: 1
+#                      y: 2.33
+#              - start:
+#                      x: 1
+#                      y: 2.66
               - start:
                       x: 1
                       y: 4.33
@@ -49,12 +46,12 @@ groups:
               - start:
                       x: 3.5
                       y: 0.66
-              - start:
-                      x: 3.5
-                      y: 2.33
-              - start:
-                      x: 3.5
-                      y: 2.66
+#              - start:
+#                      x: 3.5
+#                      y: 2.33
+#              - start:
+#                      x: 3.5
+#                      y: 2.66
               - start:
                       x: 3.5
                       y: 4.33
@@ -68,12 +65,12 @@ groups:
               - start:
                       x: 2.25
                       y: 0.66
-              - start:
-                      x: 2.25
-                      y: 2.33
-              - start:
-                      x: 2.25
-                      y: 2.66
+#              - start:
+#                      x: 2.25
+#                      y: 2.33
+#              - start:
+#                      x: 2.25
+#                      y: 2.66
               - start:
                       x: 2.25
                       y: 4.33
@@ -88,12 +85,12 @@ groups:
               - start:
                       x: 4.75
                       y: 0.66
-              - start:
-                      x: 4.75
-                      y: 2.33
-              - start:
-                      x: 4.75
-                      y: 2.66
+#              - start:
+#                      x: 4.75
+#                      y: 2.33
+#              - start:
+#                      x: 4.75
+#                      y: 2.66
               - start:
                       x: 4.75
                       y: 4.33
@@ -107,12 +104,12 @@ groups:
               - start:
                       x: 7.25
                       y: 0.66
-              - start:
-                      x: 7.25
-                      y: 2.33
-              - start:
-                      x: 7.25
-                      y: 2.66
+#              - start:
+#                      x: 7.25
+#                      y: 2.33
+#              - start:
+#                      x: 7.25
+#                      y: 2.66
               - start:
                       x: 7.25
                       y: 4.33
@@ -126,12 +123,12 @@ groups:
               - start:
                       x: 6
                       y: 0.66
-              - start:
-                      x: 6
-                      y: 2.33
-              - start:
-                      x: 6
-                      y: 2.66
+#              - start:
+#                      x: 6
+#                      y: 2.33
+#              - start:
+#                      x: 6
+#                      y: 2.66
               - start:
                       x: 6
                       y: 4.33
@@ -164,96 +161,72 @@ obstacles:
     # vertical lines, "tables", grouped
     -   points:
             -   x: 2.5
-                y: 2
+                y: 3.5
             -   x: 2.5
-                y: 3
+                y: 5
     -   points:
             -   x: 2.5
                 y: 0
             -   x: 2.5
-                y: 1
-    -   points:
-            -   x: 2.5
-                y: 4
-            -   x: 2.5
-                y: 5
+                y: 1.5
+
 
     -   points:
             -   x: 5
-                y: 2
+                y: 3.5
             -   x: 5
-                y: 3
+                y: 5
     -   points:
             -   x: 5
                 y: 0
             -   x: 5
-                y: 1
-    -   points:
-            -   x: 5
-                y: 4
-            -   x: 5
-                y: 5
+                y: 1.5
+
 
     -   points:
             -   x: 7.5
-                y: 2
+                y: 3.5
             -   x: 7.5
-                y: 3
+                y: 5
     -   points:
             -   x: 7.5
                 y: 0
             -   x: 7.5
-                y: 1
-    -   points:
-            -   x: 7.5
-                y: 4
-            -   x: 7.5
-                y: 5
+                y: 1.5
+
 
     -   points:
             -   x: 6.25
-                y: 2
+                y: 3.5
             -   x: 6.25
-                y: 3
+                y: 5
     -   points:
             -   x: 6.25
                 y: 0
             -   x: 6.25
-                y: 1
-    -   points:
-            -   x: 6.25
-                y: 4
-            -   x: 6.25
-                y: 5
+                y: 1.5
+
 
     -   points:
             -   x: 1.25
-                y: 2
+                y: 3.5
             -   x: 1.25
-                y: 3
+                y: 5
     -   points:
             -   x: 1.25
                 y: 0
             -   x: 1.25
-                y: 1
-    -   points:
-            -   x: 1.25
-                y: 4
-            -   x: 1.25
-                y: 5
+                y: 1.5
+
 
     -   points:
             -   x: 3.75
-                y: 2
+                y: 3.5
             -   x: 3.75
-                y: 3
+                y: 5
     -   points:
             -   x: 3.75
                 y: 0
             -   x: 3.75
-                y: 1
-    -   points:
-            -   x: 3.75
-                y: 4
-            -   x: 3.75
-                y: 5
+                y: 1.5
+
