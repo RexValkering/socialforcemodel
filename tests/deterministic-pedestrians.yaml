@@ -1,0 +1,36 @@
+# Simple configuration where 3 pedestrians are spawned deterministcally at selected locations, not just randomly at some area.
+world_height: 5
+world_width: 20
+step_size: 0.02
+groups:
+      - target_area:
+            start:
+                x: 30.0
+                y: 1.6
+            end:
+                x: 32.0
+                y: 3.4
+         # number of "randomly" generated pedestrians should be 0 for classroom
+         # we want to deterministically define where our pedestrians start
+        num_pedestrians: 0
+        pedestrians:
+              - start:
+                      x: 2
+                      y: 2
+              - start:
+                      x: 4
+                      y: 4
+              - start:
+                      x: 3
+                      y: 3
+obstacles:
+    -   points:
+            -   x: -2.0
+                y: 1.5
+            -   x: 32.0
+                y: 1.5
+    -   points:
+            -   x: -2.0
+                y: 3.5
+            -   x: 32.0
+                y: 3.5
