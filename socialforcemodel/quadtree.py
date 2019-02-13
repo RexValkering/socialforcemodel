@@ -58,6 +58,14 @@ class QuadTree(object):
 
     def add(self, pedestrian):
         """ Adds a pedestrian to this tree. """
+        if hasattr(pedestrian, 'quad') and pedestrian.quad is not None:
+            return
+
+        if pedestrian in self.pedestrians:
+            print("Pedestrian already in this set.")
+            print(self.count)
+            print(self.xmin, self.ymin, self.length)
+            exit()
         if self.type == QuadTree.SINGLE:
 
             # Check if we should divide this QuadTree.
@@ -81,6 +89,7 @@ class QuadTree(object):
 
     def remove(self, pedestrian):
         """ Removes a pedestrian from this tree. """
+
         position = pedestrian.position
 
         if self.type == QuadTree.DIVIDED:
@@ -95,8 +104,15 @@ class QuadTree(object):
                 self.children[index].remove(pedestrian)
 
         if self.type == QuadTree.SINGLE:
-            self.pedestrians.remove(pedestrian)
-            pedestrian.quad = None
+            try:
+                self.pedestrians.remove(pedestrian)
+                pedestrian.quad = None
+            except:
+                print(pedestrian.quad.type)
+                print(pedestrian.quad.xmin, pedestrian.quad.ymin, pedestrian.quad.length)
+                print(pedestrian.position)
+                print(self.xmin, self.ymin, self.length)
+                raise
 
         # Decrease the pedestrian counter.
         self.count -= 1
@@ -113,6 +129,7 @@ class QuadTree(object):
         # Move all pedestrians.
         for pedestrian in self.pedestrians:
             index = self.get_subtree_index(pedestrian)
+            pedestrian.quad = None
             self.children[index].add(pedestrian)
 
         # Empty pedestrian set.
@@ -121,6 +138,7 @@ class QuadTree(object):
 
     def merge(self):
         """ Merges its four subtrees into one tree. """
+
         for i in range(4):
             # First merge the subtree if needed.
             if self.children[i].type == QuadTree.DIVIDED:
@@ -129,6 +147,7 @@ class QuadTree(object):
             # Now move the pedestrians.
             for pedestrian in self.children[i].pedestrians:
                 self.pedestrians.add(pedestrian)
+                pedestrian.quad = self
 
         # Remove all subtrees.
         self.children = []
@@ -186,6 +205,41 @@ class QuadTree(object):
         # There is no overlap
         return set()
 
+    def get_number_of_pedestrians_in_box(self, xmin, xmax, ymin, ymax):
+        # No pedestrians in quad.
+        # print("Considering: ({},{}) x ({},{})".format(xmin, xmax, ymin, ymax))
+        if self.count == 0:
+            # print("    No pedestrians in ({},{}) x ({}, {})".format(self.xmin, self.xmin + self.length, self.ymin, self.ymin + self.length))
+            return 0
+
+        # Quad lies outside target area.
+        if ((self.xmin + self.length) <= xmin or self.xmin >= xmax
+                or self.ymin >= ymax or (self.ymin + self.length) <= ymin):
+            # print("    Quad lies outside target area ({},{}) x ({}, {})".format(self.xmin, self.xmin + self.length, self.ymin, self.ymin + self.length))
+            return 0
+
+        # Quad lies fully within target area.
+        if (self.xmin >= xmin and (self.xmin + self.length) <= xmax
+                and self.ymin >= ymin and (self.ymin + self.length) <= ymax):
+            # print("{}   Quad lies inside target area ({},{}) x ({}, {})".format(self.count, self.xmin, self.xmin + self.length, self.ymin, self.ymin + self.length))
+            # for p in self.get_pedestrians():
+                # print("    -   {}".format(p.position))
+            return self.count
+
+        # Quad is both in and out target area. Divide and conquer.
+        count = 0
+        if self.type == QuadTree.SINGLE:
+            for p in self.pedestrians:
+                if (xmin <= p.position[0] <= xmax
+                        and ymin <= p.position[1] <= ymax):
+                    # print("    -   {}".format(p.position))
+                    count += 1
+        else:
+            for child in self.children:
+                count += child.get_number_of_pedestrians_in_box(xmin, xmax, ymin, ymax)
+        # print("    Found {} pedestrians".format(count))
+        return count
+
     def draw(self, ax):
         """ Draw the Quad Tree on a matplotlib subplot. """
         patch = patches.Rectangle((self.xmin, self.ymin), self.length,
@@ -195,3 +249,11 @@ class QuadTree(object):
         if self.type == QuadTree.DIVIDED:
             for child in self.children:
                 child.draw(ax)
+
+    def get_pedestrians(self):
+        if self.type == QuadTree.SINGLE:
+            return self.pedestrians
+        pedestrians = []
+        for child in self.children:
+            pedestrians.extend(list(child.get_pedestrians()))
+        return pedestrians

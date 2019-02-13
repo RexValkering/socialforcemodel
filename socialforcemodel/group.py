@@ -25,16 +25,19 @@ class Group(object):
         self.spawn_max = None
         self.spawn_count = 0
         self.spawn_area = spawn_area
+        self.spawn_method = 'poisson'
         self.target_area = target_area
         self.path = target_path
         self.start_time = 0
         self.active = False
-        self.ornstein_uhlenbeck = False
+        self.angle_ou_process = False
+        self.velocity_ou_process = False
 
         # Pedestrian attributes
         self.pedestrians = []
         self.final_behaviour = 'remove'
         self.default_mass = 60
+        self.mass_function = None
         self.default_radius = 0.15
         self.desired_velocity_function = None
         self.desired_velocity = self.world.desired_velocity
@@ -67,12 +70,44 @@ class Group(object):
         """ Set the maximum number of pedestrians to be spawned. """
         self.spawn_max = spawn_max
 
+    def set_spawn_method(self, spawn_method):
+        self.spawn_method = spawn_method
+
     def set_target_area(self, target_area):
         """ Set the target area for this group. """
         self.target_area = target_area
 
     def set_default_mass(self, mass):
-        self.default_mass = mass
+        """ Set the default mass of a pedestrian.
+
+        Args:
+            desired_velocity: one of the following formats:
+            -   float with desired mass in kg
+            -   'normal m s', where m is the mean and s is the sigma
+            -   'exponential l', where l is the lambda
+        """
+        try:
+            if isinstance(mass, float) or isinstance(mass, int):
+                self.default_mass = mass
+            else:
+                args = mass.split()
+                if args[0] == "normal" and len(args) == 3:
+                    normal = float(args[1])
+                    sigma = float(args[2])
+
+                    def normal_function():
+                        return np.random.normal(normal, sigma)
+                    self.mass_function = normal_function
+                elif args[0] == "exponential" and len(args) == 2:
+                    beta = 1.0 / float(args[1])
+
+                    def exponential_function():
+                        return np.random.exponential(beta)
+                    self.mass_function = exponential_function
+                else:
+                    raise ValueError("Incorrect argument for group mass")
+        except ValueError:
+            raise ValueError("Incorrect argument for group mass")
 
     def set_default_radius(self, radius):
         self.default_radius = radius
@@ -120,7 +155,7 @@ class Group(object):
     def set_relaxation_time(self, relaxation_time):
         self.relaxation_time = relaxation_time
 
-    def set_ornstein_uhlenbeck_process(self, mean, theta, sigma):
+    def set_ornstein_uhlenbeck_process(self, mean, theta, sigma, process='angle'):
         """ Enable the Ornstein-Uhlenbeck process for deviating desired
         velocity.
 
@@ -131,10 +166,15 @@ class Group(object):
             mean: the mean the process should gravitate towards
             theta: scaling factor of difference with mean
             sigma: scaling factor of random variation
+            parameter: which attribute to adjust
         """
-        self.ornstein_uhlenbeck = (mean, theta, sigma)
+        if process == 'angle':
+            self.angle_ou_process = (mean, theta, sigma)
+        else:
+            self.velocity_ou_process = (mean, theta, sigma)
+
         for p in self.pedestrians:
-            p.set_ornstein_uhlenbeck_process(mean, theta, sigma)
+            p.set_ornstein_uhlenbeck_process(mean, theta, sigma, process)
 
     def add_path_node(self, node):
         """ Append a target node to this target path. """
@@ -169,29 +209,42 @@ class Group(object):
             # print "Func"
             kwargs['desired_velocity'] = self.desired_velocity_function()
 
+        if self.mass_function is not None:
+            # print "Func"
+            kwargs['mass'] = self.mass_function()
+
         for var in defaults:
             if var not in kwargs:
                 kwargs[var] = defaults[var]
 
         p = Pedestrian(self, **kwargs)
-        if self.ornstein_uhlenbeck is not False:
-            mean, theta, sigma = self.ornstein_uhlenbeck
-            p.set_ornstein_uhlenbeck_process(mean, theta, sigma)
+        if self.angle_ou_process is not False:
+            mean, theta, sigma = self.angle_ou_process
+            p.set_ornstein_uhlenbeck_process(mean, theta, sigma, 'angle')
+        if self.velocity_ou_process is not False:
+            mean, theta, sigma = self.velocity_ou_process
+            p.set_ornstein_uhlenbeck_process(mean, theta, sigma, 'velocity')
 
         if self.active:
             self.world.quadtree.add(p)
 
         self.spawn_count += 1
+        return p
 
     def activate(self):
         self.active = True
         for pedestrian in self.get_pedestrians():
             self.world.quadtree.add(pedestrian)
 
+    def clear(self):
+        for pedestrian in list(self.pedestrians):
+            self.remove_pedestrian(pedestrian)
+
     def remove_pedestrian(self, pedestrian):
         """ Remove a pedestrian from this group. """
         self.pedestrians.remove(pedestrian)
-        self.world.quadtree.remove(pedestrian)
+        if self.world.quadtree:
+            self.world.quadtree.remove(pedestrian)
 
     def set_final_behaviour(self, behaviour):
         """ Set the final behaviour of this pedestrian group.
@@ -214,7 +267,7 @@ class Group(object):
             InvalidArgumentException: If group name is unknown.
         """
         if behaviour not in ['remove', 'wander', 'none']:
-            raise InvalidArgumentException
+            raise InvalidArgumentException()
 
         self.final_behaviour = behaviour
 
@@ -238,7 +291,8 @@ class Group(object):
             exit(1)
 
         # Testing the use of an area rather than a point.
-        return self.target_area
+        if self.world.target_type == 'area':
+            return self.target_area
 
         target = np.random.rand(2)
         area = self.target_area
@@ -283,11 +337,38 @@ class Group(object):
         for p in to_remove:
             self.remove_pedestrian(p)
 
-        # Spawn new pedestrians based on the spawn rate.
-        if self.spawn_rate and (self.spawn_max is None or
-                                len(self.pedestrians) < self.spawn_max):
-            # Make sure we don't spawn more pedestrians than the limit.
-            max_spawned = self.spawn_max - len(self.pedestrians)
-            poisson_lambda = self.spawn_rate * self.world.step_size
-            for s in range(min(max_spawned, np.random.poisson(poisson_lambda))):
-                self.spawn_pedestrian()
+        # print('Considering spawn for group {} at time {}'.format(self.id, self.world.time))
+
+        if self.spawn_method == 'normal':
+            # Spawn new pedestrians based on the spawn rate.
+            if self.spawn_rate and (self.spawn_max is None or
+                                    len(self.pedestrians) < self.spawn_max):
+                # Make sure we don't spawn more pedestrians than the limit.
+                max_spawned = 10**5
+                if self.spawn_max is not None:
+                    max_spawned = self.spawn_max - len(self.pedestrians)
+                poisson_lambda = self.spawn_rate * self.world.step_size
+                for s in range(min(max_spawned, np.random.poisson(poisson_lambda))):
+                    self.spawn_pedestrian()
+        
+        elif self.spawn_method == 'refill':
+            # Check the number of pedestrians currently in the area.
+            if self.spawn_rate and self.spawn_max:
+                start = self.spawn_area.start
+                end = self.spawn_area.end
+                currently_in_box = self.world.quadtree.get_number_of_pedestrians_in_box(
+                    start[0], end[0], start[1], end[1])
+                # print("Time: {}\tBox: {}\tMax: {}".format(self.world.time, currently_in_box, self.spawn_max))
+                if currently_in_box < self.spawn_max:
+                    poisson_lambda = self.spawn_rate * self.world.step_size
+                    poisson_value = np.random.poisson(poisson_lambda)
+                    # print(poisson_lambda, poisson_value)
+
+                    # print("Spawning ")
+                    for s in range(min(self.spawn_max - currently_in_box, poisson_value)):
+                        self.spawn_pedestrian()
+                        # print("Spawning pedestrian at time {} for group {}******************************".format(self.world.time, self.id))
+                # else:
+                    # print("Not spawning, {} {}".format(currently_in_box, self.spawn_max))
+            else:
+                print("Not spawning because missing parameters")

@@ -53,7 +53,10 @@ class ParameterLoader(object):
             'turbulence_max_repulsion': world.set_turbulence_max_repulsion,
             'turbulence_lambda': world.set_turbulence_lambda,
             'turbulence_exponent': world.set_turbulence_exponent,
-            'braking_chance': world.set_braking_chance
+            'braking_chance': world.set_braking_chance,
+            'test_repulsion_variance': world.set_test_repulsion_variance,
+            'target_type': world.set_target_type,
+            'reaction_delay': world.set_reaction_delay
         }
 
         # Parse world dimensions and characteristics
@@ -86,7 +89,10 @@ class ParameterLoader(object):
             'spawn_rate': group.set_spawn_rate,
             'start_time': group.set_start_time,
             'repulsion_weight': group.set_repulsion_weight,
-            'spawn_max': group.set_spawn_max
+            'spawn_max': group.set_spawn_max,
+            'spawn_method': group.set_spawn_method,
+            'radius': group.set_default_radius,
+            'mass': group.set_default_mass
         }
 
         # Parse group characteristics

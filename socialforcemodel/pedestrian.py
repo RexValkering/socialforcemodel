@@ -1,9 +1,10 @@
 import numpy as np
+from collections import deque
 from itertools import count
 from matplotlib.patches import Circle
 import matplotlib
 import matplotlib.pyplot as plt
-from .math import *
+from .math import length_squared, angle_between
 from .area import Area
 import time
 from scipy.ndimage.interpolation import rotate
@@ -34,7 +35,7 @@ class Pedestrian(object):
     """
     _ids = count(0)
 
-    def __init__(self, group=None, radius=0.15, mass=60, desired_velocity=1.3,
+    def __init__(self, group, radius=0.15, mass=60, desired_velocity=1.3,
                  maximum_velocity=2.6, relaxation_time=2.0, start=None,
                  target_path=[]):
         self.id = self._ids.next()
@@ -46,8 +47,10 @@ class Pedestrian(object):
         self.maximum_velocity = maximum_velocity
         self.relaxation_time = relaxation_time
         self.target_is_point = True
-        self.ornstein_uhlenbeck = False
+        self.angle_ou_process = False
+        self.velocity_ou_process = False
         self.desired_offset_angle = 0.0
+        self.desired_velocity_offset = 0.0
         self.closest_obstacle_points = []
         self.is_braking = False
         self.original_desired_velocity = desired_velocity
@@ -67,6 +70,7 @@ class Pedestrian(object):
 
         self.target_index = 0
         self.target = self.target_path[self.target_index]
+        self.quad = None
 
         # Start with a velocity of zero.
         self.desired_direction = self.get_desired_direction()
@@ -77,13 +81,18 @@ class Pedestrian(object):
         self.next_position = self.position
         self.speed = np.sqrt(self.velocity[0]**2 + self.velocity[1]**2)
         self.next_speed = self.speed
+        self.current_max_repulsion = 160.0
 
         # Make sure this pedestrian is in the group.
-        if group:
-            group.add_pedestrian(self)
+        group.add_pedestrian(self)
+        self.max_repulsive_force = group.world.turbulence_max_repulsion
 
         # Create a measurement history object to be filled on 'update'.
         self.measurements = []
+
+        # Create a deque for storing position history.
+        steps_delayed = int(self.group.world.reaction_delay / self.group.world.step_size)
+        self.delayed_social_force = deque(maxlen=1 + steps_delayed)
 
     def add_measurement(self, category, name, value):
         """ Add a measurement for this time step to this pedestrian.
@@ -108,11 +117,11 @@ class Pedestrian(object):
             name: name of measurement
             time: array offset to get measurement from (default last)
         """
-        if time not in self.measurements:
+        if time is not -1 and time not in self.measurements:
             return False
         return self.measurements[time][category][name]
 
-    def set_ornstein_uhlenbeck_process(self, mean, theta, sigma):
+    def set_ornstein_uhlenbeck_process(self, mean, theta, sigma, process):
         """ Enable the Ornstein-Uhlenbeck process for deviating desired
         direction.
 
@@ -124,7 +133,11 @@ class Pedestrian(object):
             theta: scaling factor of difference with mean
             sigma: scaling factor of random variation
         """
-        self.ornstein_uhlenbeck = (mean, theta, sigma)
+        if process == 'angle':
+            self.angle_ou_process = (mean, theta, sigma)
+        elif process == 'velocity':
+            self.velocity_ou_process = (mean, theta, sigma)
+
 
     def step(self, step_size, obstacles):
         """ Calculate the position and velocity at next timestep.
@@ -221,6 +234,8 @@ class Pedestrian(object):
         if length_squared(goal_vec) < 0.0001:
             return False
 
+        # print(goal_vec, np.sqrt(length_squared(goal_vec)))
+
         goal_vec /= np.sqrt(length_squared(goal_vec))
         goal_vec_perp = np.array([goal_vec[1], -goal_vec[0]])
         pos_upper = pos + self.radius * goal_vec_perp
@@ -237,42 +252,38 @@ class Pedestrian(object):
     def update(self):
         """ Update the target_path and characteristics of this pedestrian. """
         if not self.quad.inside(self.next_position):
-            try:
-                self.group.world.quadtree.remove(self)
-            except KeyError:
-                print self.position
-                print self.next_position
-                print self.quad.length
-                print self.quad.xmin
-                print self.quad.ymin
-                print self.group.world.quadtree.length
-                raise
-
+            self.group.world.quadtree.remove(self)
+            
         # Determine whether braking should stop.
-        # if self.is_braking:
-        #    print("{}: Speed {} = {} (next: {})".format(self.group.world.time, self.id, self.speed, self.next_speed))
-
         if self.is_braking and (self.speed != self.next_speed and self.speed / self.next_speed < 1.5):     
-        #    print("{}: Stopped braking {}".format(self.group.world.time, self.id))
             self.is_braking = False
-        #    print("-- {} -> {}".format(self.desired_velocity, self.original_desired_velocity))
             self.desired_velocity = self.original_desired_velocity
 
         # Update position, velocity and speed.
         self.position = self.next_position
         self.velocity = self.next_velocity
-        self.speed = self.next_speed 
+        self.speed = self.next_speed
 
         # Updated desired velocity if Ornstein Uhlenbeck processes are enabled.
-        if self.ornstein_uhlenbeck is not False:
+        if self.angle_ou_process is not False:
             # mean, theta, sigma = self.ornstein_uhlenbeck
 
-            mean, theta, sigma = self.ornstein_uhlenbeck
+            mean, theta, sigma = self.angle_ou_process
 
-            angle = (theta * (0 - self.desired_offset_angle) *
+            angle = (theta * (mean - self.desired_offset_angle) *
                      self.group.world.step_size + sigma *
                      np.random.normal())
             self.desired_offset_angle += angle
+
+        if self.velocity_ou_process is not False:
+            # mean, theta, sigma = self.ornstein_uhlenbeck
+
+            mean, theta, sigma = self.velocity_ou_process
+
+            diff = (theta * (mean - self.desired_velocity_offset) *
+                     self.group.world.step_size + sigma *
+                     np.random.normal())
+            self.desired_velocity_offset += diff
 
         # Make sure the pedestrian is inside the quadtree.
         if not self.quad:
@@ -442,8 +453,13 @@ class Pedestrian(object):
 
         # Calculate the forces and return the sum of forces.
         attractive = self.calculate_attractive_force(pedestrians)
-        ped_repulsive = self.calculate_pedestrian_repulsive_force(pedestrians)
+        ped_repulsive, ped_physical = self.calculate_pedestrian_repulsive_force(pedestrians)
         ob_repulsive = self.calculate_obstacle_repulsive_force(obstacles)
+
+        self.delayed_social_force.append(ped_repulsive)
+        # print(ped_repulsive)
+        ped_repulsive = self.delayed_social_force[0]
+        # print(ped_repulsive)
 
         # Ignore other pedestrians if braking.
         if self.is_braking:
@@ -451,25 +467,45 @@ class Pedestrian(object):
             ped_repulsive = np.array([0.0, 0.0])
 
         total_force = attractive + self.group.repulsion_weight * (
-            ped_repulsive + ob_repulsive)
+            ped_repulsive + ob_repulsive + ped_physical)
 
         random_force = np.zeros(2)
         if world.velocity_variance_factor > 0.0:
             stdev = world.velocity_variance_factor * world.step_size
             random_force = np.random.normal(0.0, stdev, size=2)
 
-        if self.id == 0:
-            len_force = np.sqrt(total_force[0]**2 + total_force[1]**2)
-            len_random = np.sqrt((total_force[0] + random_force[0])**2 +
-                                 (total_force[1] + random_force[1])**2)
-            if len_force > 0.001:
-                self.add_measurement('self', 'random', len_random / len_force)
-            else:
-                self.add_measurement('self', 'random', 0.0)
+        # Check whether the unit is going backwards
+        target = self.target
+        if isinstance(target, Area):
+            target = target.get_closest_point(self.position)
+        angle_between_force_and_target = angle_between(total_force, target - self.position)
+        angle_between_velocity_and_target = angle_between(self.velocity, target - self.position)
 
-        # self.add_measurement('forces', 'attractive', attractive)
-        # self.add_measurement('forces', 'pedestrian_repulsive', ped_repulsive)
-        # self.add_measurement('forces', 'obstacle_repulsive', ob_repulsive)
+        self.add_measurement('forces', 'force_angle', angle_between_force_and_target)
+        self.add_measurement('forces', 'velocity_angle', angle_between_velocity_and_target)
+
+        # if self.id == 0:
+        #     len_force = np.sqrt(total_force[0]**2 + total_force[1]**2)
+        #     len_random = np.sqrt((total_force[0] + random_force[0])**2 +
+        #                          (total_force[1] + random_force[1])**2)
+        #     if len_force > 0.001:
+        #         self.add_measurement('self', 'random', len_random / len_force)
+        #     else:
+        #         self.add_measurement('self', 'random', 0.0)
+
+        # @MAX_REPULSION_TEST
+        # if self.group.world.test_repulsion_variance:
+            # print(self.get_measurement('forces', 'pushing_force'))
+            # if self.get_measurement('forces', 'pushing_force') > 0:
+                # self.max_repulsive_force = min(160.0, self.max_repulsive_force + 1.0)
+            # else:
+            #     self.max_repulsive_force = max(self.group.world.turbulence_max_repulsion, self.max_repulsive_force - 5.0)
+            # if self.max_repulsive_force > 21:
+            #     print(self.max_repulsive_force) 
+
+        self.add_measurement('forces', 'attractive', attractive)
+        self.add_measurement('forces', 'pedestrian_repulsive', ped_repulsive)
+        self.add_measurement('forces', 'obstacle_repulsive', ob_repulsive)
 
         return total_force + random_force
 
@@ -494,6 +530,8 @@ class Pedestrian(object):
         else:
             velocity_factor = 1.0
 
+        # print(self.relaxation_time)
+
         # There might be a chance the pedestrian radndomly brakes.
         # In that case, set preferred_velocity to (0, 0).
         # if braking_chance > 0 and random.random() < braking_chance:
@@ -503,9 +541,9 @@ class Pedestrian(object):
         # Calculate the preferred velocity, which consists of a weighted
         # sum of the desired velocity towards target and the average
         # velocity.
-        preferred_velocity = ((velocity_factor * self.desired_velocity *
-                          desired_dir) + (1 - velocity_factor) *
-                          average_velocity)
+        actual_desired_velocity = max(0.0, self.desired_velocity + self.desired_velocity_offset)
+        preferred_velocity = ((velocity_factor * actual_desired_velocity * desired_dir) + 
+                              (1 - velocity_factor) * average_velocity)
 
         attractive_force = (- self.mass * (self.velocity -
                             preferred_velocity) / self.relaxation_time)
@@ -538,10 +576,13 @@ class Pedestrian(object):
         if len(p_position) == 0:
             self.add_measurement('forces', 'local_density', 0.0)
             self.add_measurement('forces', 'local_velocity_variance', 0.0)
-            return np.array([0.0, 0.0])
+            self.add_measurement('forces', 'repulsive_force', 0.0)
+            self.add_measurement('forces', 'pushing_force', 0.0)
+            return np.array([0.0, 0.0]), np.array([0.0, 0.0])
 
         force_args = []
-        force_args.append(world.turbulence_max_repulsion)
+        # force_args.append(world.turbulence_max_repulsion)
+        force_args.append(self.max_repulsive_force)
         force_args.append(world.turbulence_lambda)
         force_args.append(world.turbulence_d0)
         force_args.append(world.turbulence_d1)
@@ -561,11 +602,13 @@ class Pedestrian(object):
             force_args, world.turbulence_exponent)
 
         # print(force)
-        self.add_measurement('forces', 'local_density', force[2])
+        self.add_measurement('forces', 'local_density', force[4])
         self.add_measurement('forces', 'local_velocity_variance',
-                             force[3])
+                             force[5])
+        self.add_measurement('forces', 'repulsive_force', force[6])
+        self.add_measurement('forces', 'pushing_force', force[7])
 
-        return np.array([force[0], force[1]])
+        return np.array([force[0], force[1]]), np.array([force[2], force[3]])
 
     def calculate_pedestrian_repulsive_force_old(self, pedestrians):
         """ Calculates the repulsive force with all others pedestrians.
@@ -808,8 +851,8 @@ class Pedestrian(object):
         # core_color = scalarmap.to_rgba(self.speed - self.desired_velocity)
 
         c = 'white'
-        if self.speed < 0.2:
-            c = 'red'
+        # if self.speed < 0.2:
+        #     c = 'red'
 
         ax.add_artist(Circle(xy=(self.position), radius=0.5 * self.diameter,
                              facecolor=c, edgecolor=color, fill=True))

@@ -62,6 +62,9 @@ class World(object):
         self.turbulence_max_repulsion = 160.0
         self.turbulence_lambda = 0.25
         self.turbulence_exponent = 2
+        self.test_repulsion_variance = False
+        self.target_type = 'area'
+        self.reaction_delay = 0.0
 
         # Random braking experiment
         self.braking_chance = 0.0
@@ -141,13 +144,18 @@ class World(object):
     def set_braking_chance(self, value):
         self.braking_chance = value
 
-    def height(self):
-        """ Get the height (y-direction) of this world. """
-        return self.height
+    def set_test_repulsion_variance(self, value):
+        self.test_repulsion_variance = value
 
-    def width(self):
-        """ Get the width (x-direction) of this world. """
-        return self.width
+    def set_target_type(self, value):
+        self.target_type = value
+
+    def set_reaction_delay(self, value):
+        self.reaction_delay = value
+
+    def clear(self):
+        for group in self.groups:
+            group.clear()
 
     def add_group(self, group):
         """ Add a group to this world. """
@@ -200,7 +208,7 @@ class World(object):
                 expecting_spawn = True
             pedestrians += group.get_pedestrians()
 
-        if pedestrians != []:
+        if pedestrians != [] or expecting_spawn:
             # Loop through all pedestrians in the shuffled order.
             for p in pedestrians:
                 p.step(self.step_size, self.obstacles)
