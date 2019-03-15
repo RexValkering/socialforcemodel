@@ -1,4 +1,0 @@
-token: 781987374:AAFbARw1r-PUlPIJqB95XLu8POy3BSe-8W8
-maintainer_id: 12194554
-database_file: birthdays.db
-url: https://birthdaybot.rexvalkering.nl
