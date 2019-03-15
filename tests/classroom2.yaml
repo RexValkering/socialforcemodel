@@ -1,0 +1,232 @@
+world_height: 5
+world_width: 10
+step_size: 0.02
+groups:
+    -   spawn_rate: 0
+        radius: 0.05
+        target_area:
+            start:
+                x: 10
+                y: 2.4
+            end:
+                x: 10
+                y: 2.6
+        target_path:
+            -   x: 7.5
+                y: 2.5
+            -   x: 10
+                y: 2.5
+
+
+        num_pedestrians: 0
+        pedestrians:
+# last row of 'tables'
+              - start:
+                      x: 1
+                      y: 0.33
+              - start:
+                      x: 1
+                      y: 0.66
+#              - start:
+#                      x: 1
+#                      y: 2.33
+#              - start:
+#                      x: 1
+#                      y: 2.66
+              - start:
+                      x: 1
+                      y: 4.33
+              - start:
+                      x: 1
+                      y: 4.66
+              # second to last row of 'tables'
+              - start:
+                      x: 3.5
+                      y: 0.33
+              - start:
+                      x: 3.5
+                      y: 0.66
+#              - start:
+#                      x: 3.5
+#                      y: 2.33
+#              - start:
+#                      x: 3.5
+#                      y: 2.66
+              - start:
+                      x: 3.5
+                      y: 4.33
+              - start:
+                      x: 3.5
+                      y: 4.66
+
+              - start:
+                      x: 2.25
+                      y: 0.33
+              - start:
+                      x: 2.25
+                      y: 0.66
+#              - start:
+#                      x: 2.25
+#                      y: 2.33
+#              - start:
+#                      x: 2.25
+#                      y: 2.66
+              - start:
+                      x: 2.25
+                      y: 4.33
+              - start:
+                      x: 2.25
+                      y: 4.66
+
+
+              - start:
+                      x: 4.75
+                      y: 0.33
+              - start:
+                      x: 4.75
+                      y: 0.66
+#              - start:
+#                      x: 4.75
+#                      y: 2.33
+#              - start:
+#                      x: 4.75
+#                      y: 2.66
+              - start:
+                      x: 4.75
+                      y: 4.33
+              - start:
+                      x: 4.75
+                      y: 4.66
+            # LAST ROW
+              - start:
+                      x: 7.25
+                      y: 0.33
+              - start:
+                      x: 7.25
+                      y: 0.66
+#              - start:
+#                      x: 7.25
+#                      y: 2.33
+#              - start:
+#                      x: 7.25
+#                      y: 2.66
+              - start:
+                      x: 7.25
+                      y: 4.33
+              - start:
+                      x: 7.25
+                      y: 4.66
+            # 2nd last ROW
+              - start:
+                      x: 6
+                      y: 0.33
+              - start:
+                      x: 6
+                      y: 0.66
+#              - start:
+#                      x: 6
+#                      y: 2.33
+#              - start:
+#                      x: 6
+#                      y: 2.66
+              - start:
+                      x: 6
+                      y: 4.33
+              - start:
+                      x: 6
+                      y: 4.66
+obstacles:
+    # Horizontal lines, "walls"
+    -   points:
+            -   x: -2.0
+                y: 0.1
+            -   x: 10.0
+                y: 0.1
+    -   points:
+            -   x: -2.0
+                y: 4.9
+            -   x: 10.0
+                y: 4.9
+    # Vertical lines with space in between, "door"
+    -   points:
+            -   x: 10
+                y: 0
+            -   x: 10
+                y: 2
+    -   points:
+            -   x: 10
+                y: 3
+            -   x: 10
+                y: 5
+    # vertical lines, "tables", grouped
+    -   points:
+            -   x: 2.5
+                y: 3.5
+            -   x: 2.5
+                y: 5
+    -   points:
+            -   x: 2.5
+                y: 0
+            -   x: 2.5
+                y: 1.5
+
+
+    -   points:
+            -   x: 5
+                y: 3.5
+            -   x: 5
+                y: 5
+    -   points:
+            -   x: 5
+                y: 0
+            -   x: 5
+                y: 1.5
+
+
+    -   points:
+            -   x: 7.5
+                y: 3.5
+            -   x: 7.5
+                y: 5
+    -   points:
+            -   x: 7.5
+                y: 0
+            -   x: 7.5
+                y: 1.5
+
+
+    -   points:
+            -   x: 6.25
+                y: 3.5
+            -   x: 6.25
+                y: 5
+    -   points:
+            -   x: 6.25
+                y: 0
+            -   x: 6.25
+                y: 1.5
+
+
+    -   points:
+            -   x: 1.25
+                y: 3.5
+            -   x: 1.25
+                y: 5
+    -   points:
+            -   x: 1.25
+                y: 0
+            -   x: 1.25
+                y: 1.5
+
+
+    -   points:
+            -   x: 3.75
+                y: 3.5
+            -   x: 3.75
+                y: 5
+    -   points:
+            -   x: 3.75
+                y: 0
+            -   x: 3.75
+                y: 1.5
+

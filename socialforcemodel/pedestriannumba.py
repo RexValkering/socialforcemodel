@@ -97,7 +97,7 @@ def calculate_pedestrian_repulsive_force(distance_threshold, self_position,
         pushing_force = 0
         friction_force = np.array([0, 0])
 
-        if agent_overlap > 0:
+        if agent_overlap > 0 and False:
             # Find delta, which is a factor for friction force.
             delta = (ped_velocity[i] - self_velocity) * tangential
 

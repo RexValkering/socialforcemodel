@@ -14,10 +14,13 @@ import numpy as np
 class ParameterLoader(object):
     """ Load parameters from file and create a world. """
 
-    def __init__(self, filename):
-        data = {}
-        with open(filename) as file:
-            data = load(file, Loader=Loader)
+    def __init__(self, filename=None, data=None):
+        if filename:
+            with open(filename) as file:
+                data = load(file, Loader=Loader)
+
+        if not data:
+            raise Exception("No filename or data supplied")
 
         world = World()
         self.world = world
@@ -64,7 +67,7 @@ class ParameterLoader(object):
             if key in standard_parse_functions:
                 standard_parse_functions[key](data[key])
             elif key not in ['groups', 'obstacles']:
-                print "Warning: parameter {} not recognized".format(key)
+                print("Warning: parameter {} not recognized".format(key))
 
         # Parse groups
         if 'groups' in data:
@@ -96,7 +99,7 @@ class ParameterLoader(object):
         }
 
         # Parse group characteristics
-        for (key, function) in standard_parse_functions.items():
+        for (key, function) in list(standard_parse_functions.items()):
             if key in data:
                 function(data[key])
 
@@ -151,7 +154,7 @@ class ParameterLoader(object):
             if var in data:
                 kwargs[var] = data[var]
 
-        print kwargs
+        print(kwargs)
 
         return Pedestrian(group, **kwargs)
 

@@ -105,6 +105,9 @@ class QuadTree(object):
 
         if self.type == QuadTree.SINGLE:
             try:
+                if not pedestrian.quad:
+                    return
+                
                 self.pedestrians.remove(pedestrian)
                 pedestrian.quad = None
             except:

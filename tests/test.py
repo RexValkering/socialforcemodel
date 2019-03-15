@@ -5,8 +5,8 @@ import os
 
 try:
     import progressbar
-except ImportError, e:
-    print "Progressbar package not found. Please run 'pip install progressbar'"
+except ImportError as e:
+    print("Progressbar package not found. Please run 'pip install progressbar'")
     exit()
 
 
@@ -70,7 +70,7 @@ def main(args):
 
         for group in world.groups:
             group.set_ornstein_uhlenbeck_process(mean, theta, sigma)
-            
+
         bar = progressbar.ProgressBar()
         for step in bar(range(args.steps)):
 
@@ -80,7 +80,7 @@ def main(args):
             world.update()
             if step % 5 == 0:
                 figure = world.plot()
-                figure.savefig("img/" + str((step + 1) // 5) + ".png",
+                figure.savefig("img/%03d.png" % ((step + 1) // 5),
                                bbox_inches = 'tight',
                                pad_inches = 0.1)
                 figure.clear()

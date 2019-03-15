@@ -36,16 +36,21 @@ class Pedestrian(object):
     _ids = count(0)
 
     def __init__(self, group, radius=0.15, mass=60, desired_velocity=1.3,
-                 maximum_velocity=2.6, relaxation_time=2.0, start=None,
+                 maximum_velocity=2.6, relaxation_time=None, start=None,
                  target_path=[]):
-        self.id = self._ids.next()
+        self.id = next(self._ids)
         self.group = group
         self.diameter = 2 * radius
         self.radius = radius
         self.mass = float(mass)
         self.desired_velocity = desired_velocity
         self.maximum_velocity = maximum_velocity
-        self.relaxation_time = relaxation_time
+
+        if relaxation_time:
+            self.relaxation_time = relaxation_time
+        else:
+            self.relaxation_time = self.group.relaxation_time
+
         self.target_is_point = True
         self.angle_ou_process = False
         self.velocity_ou_process = False
@@ -72,15 +77,8 @@ class Pedestrian(object):
         self.target = self.target_path[self.target_index]
         self.quad = None
 
-        # Start with a velocity of zero.
-        self.desired_direction = self.get_desired_direction()
-        velocity = self.desired_direction * self.desired_velocity
-        self.velocity = np.array([velocity[0],  velocity[1]])
-
-        self.next_velocity = self.velocity
-        self.next_position = self.position
-        self.speed = np.sqrt(self.velocity[0]**2 + self.velocity[1]**2)
-        self.next_speed = self.speed
+        self.initialize()
+        
         self.current_max_repulsion = 160.0
 
         # Make sure this pedestrian is in the group.
@@ -93,6 +91,18 @@ class Pedestrian(object):
         # Create a deque for storing position history.
         steps_delayed = int(self.group.world.reaction_delay / self.group.world.step_size)
         self.delayed_social_force = deque(maxlen=1 + steps_delayed)
+
+    def initialize(self):
+        # Start with a velocity of zero.
+        self.desired_direction = self.get_desired_direction()
+        velocity = self.desired_direction * self.desired_velocity
+        self.velocity = np.array([velocity[0],  velocity[1]])
+
+        self.next_velocity = self.velocity
+        self.next_position = self.position
+        self.speed = np.sqrt(self.velocity[0]**2 + self.velocity[1]**2)
+        self.next_speed = self.speed
+
 
     def add_measurement(self, category, name, value):
         """ Add a measurement for this time step to this pedestrian.
@@ -253,7 +263,16 @@ class Pedestrian(object):
         """ Update the target_path and characteristics of this pedestrian. """
         if not self.quad.inside(self.next_position):
             self.group.world.quadtree.remove(self)
-            
+            try:
+                self.group.world.quadtree.remove(self)
+            except KeyError:
+                print(self.position)
+                print(self.next_position)
+                print(self.quad.length)
+                print(self.quad.xmin)
+                print(self.quad.ymin)
+                print(self.group.world.quadtree.length)
+                raise
         # Determine whether braking should stop.
         if self.is_braking and (self.speed != self.next_speed and self.speed / self.next_speed < 1.5):     
             self.is_braking = False
@@ -457,13 +476,11 @@ class Pedestrian(object):
         ob_repulsive = self.calculate_obstacle_repulsive_force(obstacles)
 
         self.delayed_social_force.append(ped_repulsive)
-        # print(ped_repulsive)
         ped_repulsive = self.delayed_social_force[0]
-        # print(ped_repulsive)
 
         # Ignore other pedestrians if braking.
         if self.is_braking:
-            print attractive, ped_repulsive, ob_repulsive
+            print(attractive, ped_repulsive, ob_repulsive)
             ped_repulsive = np.array([0.0, 0.0])
 
         total_force = attractive + self.group.repulsion_weight * (
@@ -721,7 +738,7 @@ class Pedestrian(object):
                                               np.exp(- factor / D_zero +
                                                      (D_one / factor)**k))
                 except:
-                    print distance, cos_angle, omega
+                    print(distance, cos_angle, omega)
                     raise
 
             pushing_force = 0
@@ -781,6 +798,7 @@ class Pedestrian(object):
         falloff_length = world.falloff_length
         body_force_constant = world.body_force_constant
         friction_force_constant = world.friction_force_constant
+        desired_dir = self.get_desired_direction()
 
         self.closest_obstacle_points = []
 
@@ -813,7 +831,10 @@ class Pedestrian(object):
             # Find tangential
             tangential = np.array([-normal[1], normal[0]])
 
-            obstacle_repulsion_force = repulsion_coefficient * np.exp(
+            # Get angle
+            cos_angle = desired_dir * difference_direction
+            omega = world.turbulence_lambda + (1 - world.turbulence_lambda) * (1 + cos_angle) / 2
+            obstacle_repulsion_force = repulsion_coefficient * omega * np.exp(
                 agent_overlap / falloff_length)
 
             pushing_force = 0
@@ -856,6 +877,18 @@ class Pedestrian(object):
 
         ax.add_artist(Circle(xy=(self.position), radius=0.5 * self.diameter,
                              facecolor=c, edgecolor=color, fill=True))
+
+        mirrorred_positions = []
+
+        if self.position[0] < self.radius:
+            mirrorred_positions.append(self.position + np.array([self.group.world.width, 0]))
+        if self.position[0] > self.group.world.width - self.radius:
+            mirrorred_positions.append(self.position - np.array([self.group.world.width, 0]))
+
+        for position in mirrorred_positions:
+            ax.add_artist(Circle(xy=position, radius=0.5 * self.diameter,
+                                 facecolor=c, edgecolor=color, fill=True))
+
         if add_quiver:
             ax.quiver(self.position[0], self.position[1],
                       self.velocity[0], self.velocity[1], angles='xy',
