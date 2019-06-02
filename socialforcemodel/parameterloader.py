@@ -144,8 +144,6 @@ class ParameterLoader(object):
             if var in data:
                 kwargs[var] = data[var]
 
-        print(kwargs)
-
         return Pedestrian(group, **kwargs)
 
     def parse_obstacle(self, data):
