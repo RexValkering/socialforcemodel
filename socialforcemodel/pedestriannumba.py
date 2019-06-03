@@ -5,19 +5,18 @@ import numpy as np
 @jit(float32[:](float32, float32[:], float32[:], float32, float32,
      float32[:, :], float32[:, :], float32[:], float32, float32, bool_, bool_,
      float32[:], float32[:], int32))
-def calculate_pedestrian_repulsive_force(distance_threshold, self_position,
-                                         self_velocity, self_radius,
-                                         self_speed, ped_position,
-                                         ped_velocity, ped_radius,
-                                         world_height, world_width,
-                                         continuous_domain,
-                                         ignore_pedestrians_behind,
-                                         desired_dir, force_args, k):
+def calculate_pedestrian_repulsive_force(distance_threshold, self_position, self_velocity,
+                                         self_radius, self_speed, ped_position, ped_velocity,
+                                         ped_radius, world_height, world_width, continuous_domain,
+                                         ignore_pedestrians_behind, desired_dir, force_args, k):
     """ Calculates the repulsive force with all others pedestrians. """
 
-    force = np.zeros(2)
+    social_force = np.zeros(2)
+    physical_force = np.zeros(2)
     local_density = 0.0
     local_velocity_variance = 0.0
+    sum_repulsive = 0.0
+    sum_pushing = 0.0
 
     # Loop through all pedestrians.
     for i in range(len(ped_position)):
@@ -52,16 +51,6 @@ def calculate_pedestrian_repulsive_force(distance_threshold, self_position,
         if distance_squared > distance_threshold:
             continue
 
-        # # In some cases, we want to ignore pedestrians that are 'behind' us.
-        # if ignore_pedestrians_behind:
-        #     # Calculate how far 'behind' the person is.
-        #     front_factor = (desired_dir[0] * difference[0] +
-        #                     desired_dir[1] * difference[1])
-
-        #     # Check if the distance exceeds the sum of radi.
-        #     if front_factor < - self.radius - ped_radius:
-        #         continue
-
         distance = np.sqrt(distance_squared)
 
         # Agent overlap is positive if two agents 'overlap' in space.
@@ -94,7 +83,7 @@ def calculate_pedestrian_repulsive_force(distance_threshold, self_position,
         pushing_force = 0
         friction_force = np.array([0, 0])
 
-        if agent_overlap > 0:
+        if agent_overlap > 0 and False:
             # Find delta, which is a factor for friction force.
             delta = (ped_velocity[i] - self_velocity) * tangential
 
@@ -103,17 +92,25 @@ def calculate_pedestrian_repulsive_force(distance_threshold, self_position,
                               delta * tangential)
 
         # Sum the forces and add to total force.
-        pedestrian_force = ((social_repulsion_force + pushing_force) *
-                            normal + friction_force)
+        social_pedestrian_force = social_repulsion_force * normal
+        physical_pedestrian_force = pushing_force * normal + friction_force
 
-        force += pedestrian_force
+        social_force += social_pedestrian_force
+        physical_force += physical_pedestrian_force
+
         pressure = smoothing_factor * np.exp(-distance_squared /
                                              smoothing_squared)
 
         local_density += pressure
         local_velocity_variance += self_speed * pressure
 
+        sum_repulsive += np.sqrt(social_repulsion_force[0]**2 + social_repulsion_force[1]**2)
+        sum_pushing += pushing_force
+
     if local_density != 0:
         local_velocity_variance /= local_density
 
-    return np.append(force, [local_density, local_velocity_variance])
+    # print([local_density, local_velocity_variance, sum_repulsive, sum_pushing])
+
+    return np.append(np.append(social_force, physical_force),
+                    [local_density, local_velocity_variance, sum_repulsive, sum_pushing])

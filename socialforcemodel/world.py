@@ -62,6 +62,7 @@ class World(object):
         self.turbulence_max_repulsion = 160.0
         self.turbulence_lambda = 0.25
         self.turbulence_exponent = 2
+        self.target_type = 'area'
 
         # Random braking experiment
         self.braking_chance = 0.0
@@ -141,13 +142,12 @@ class World(object):
     def set_braking_chance(self, value):
         self.braking_chance = value
 
-    def height(self):
-        """ Get the height (y-direction) of this world. """
-        return self.height
+    def set_target_type(self, value):
+        self.target_type = value
 
-    def width(self):
-        """ Get the width (x-direction) of this world. """
-        return self.width
+    def clear(self):
+        for group in self.groups:
+            group.clear()
 
     def add_group(self, group):
         """ Add a group to this world. """
@@ -200,7 +200,7 @@ class World(object):
                 expecting_spawn = True
             pedestrians += group.get_pedestrians()
 
-        if pedestrians != []:
+        if pedestrians != [] or expecting_spawn:
             # Loop through all pedestrians in the shuffled order.
             for p in pedestrians:
                 p.step(self.step_size, self.obstacles)
@@ -218,7 +218,7 @@ class World(object):
 
         return True
 
-    def plot(self, add_quiver=False):
+    def plot(self, add_quiver=False, plot_target=False):
         """ Create a plot of the current world. """
 
         # Create a new plot and figure.
@@ -242,7 +242,7 @@ class World(object):
         for group in self.groups:
             for p in group.get_pedestrians():
                 p.plot(ax, color=colors[group.id % len(colors)],
-                       add_quiver=add_quiver, plot_target=False)
+                       add_quiver=add_quiver, plot_target=plot_target)
 
         # Plot all obstacles as lines.
         for obstacle in self.obstacles:

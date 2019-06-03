@@ -14,10 +14,13 @@ import numpy as np
 class ParameterLoader(object):
     """ Load parameters from file and create a world. """
 
-    def __init__(self, filename):
-        data = {}
-        with open(filename) as file:
-            data = load(file, Loader=Loader)
+    def __init__(self, filename=None, data=None):
+        if filename:
+            with open(filename) as file:
+                data = load(file, Loader=Loader)
+
+        if not data:
+            raise Exception("No filename or data supplied")
 
         world = World()
         self.world = world
@@ -53,7 +56,8 @@ class ParameterLoader(object):
             'turbulence_max_repulsion': world.set_turbulence_max_repulsion,
             'turbulence_lambda': world.set_turbulence_lambda,
             'turbulence_exponent': world.set_turbulence_exponent,
-            'braking_chance': world.set_braking_chance
+            'braking_chance': world.set_braking_chance,
+            'target_type': world.set_target_type,
         }
 
         # Parse world dimensions and characteristics
@@ -85,7 +89,11 @@ class ParameterLoader(object):
             'relaxation_time': group.set_relaxation_time,
             'spawn_rate': group.set_spawn_rate,
             'start_time': group.set_start_time,
-            'repulsion_weight': group.set_repulsion_weight
+            'repulsion_weight': group.set_repulsion_weight,
+            'spawn_max': group.set_spawn_max,
+            'spawn_method': group.set_spawn_method,
+            'radius': group.set_default_radius,
+            'mass': group.set_default_mass
         }
 
         # Parse group characteristics
