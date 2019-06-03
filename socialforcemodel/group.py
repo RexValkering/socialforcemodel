@@ -17,7 +17,7 @@ class Group(object):
     """
 
     def __init__(self, group_id, world=None, spawn_area=None,
-                 target_area=None, target_path=[]):
+                 target_area=None, target_path=None):
         # Group attributes
         self.world = world
         self.id = group_id
@@ -27,7 +27,11 @@ class Group(object):
         self.spawn_area = spawn_area
         self.spawn_method = 'poisson'
         self.target_area = target_area
-        self.path = target_path
+        if target_path is None:
+            self.path = []
+        else:
+            self.path = target_path
+            
         self.start_time = 0
         self.active = False
         self.angle_ou_process = False

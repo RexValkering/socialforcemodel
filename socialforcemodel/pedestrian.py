@@ -34,15 +34,16 @@ class Pedestrian(object):
             within the target area.
     """
     _ids = count(0)
-    radius = None
-    mass = None
-    desired_velocity = None
-    maximum_velocity = None
-    relaxation_time = None
-    start = None
-    target_path = []
 
     def __init__(self, group, **kwargs):
+
+        self.radius = 0.2
+        self.mass = 60
+        self.desired_velocity = 1.3
+        self.maximum_velocity = 2.6
+        self.relaxation_time = 0.5
+        self.start = None
+        self.target_path = []
 
         default_values = group.get_pedestrian_defaults()
 
