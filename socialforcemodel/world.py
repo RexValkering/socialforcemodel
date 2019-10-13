@@ -63,6 +63,7 @@ class World(object):
         self.turbulence_lambda = 0.25
         self.turbulence_exponent = 2
         self.target_type = 'area'
+        self.scale_lambda = False
 
         # Random braking experiment
         self.braking_chance = 0.0
@@ -144,6 +145,9 @@ class World(object):
 
     def set_target_type(self, value):
         self.target_type = value
+
+    def set_scale_lambda(self, value):
+        self.scale_lambda = value
 
     def clear(self):
         for group in self.groups:

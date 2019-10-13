@@ -58,6 +58,7 @@ class ParameterLoader(object):
             'turbulence_exponent': world.set_turbulence_exponent,
             'braking_chance': world.set_braking_chance,
             'target_type': world.set_target_type,
+            'scale_lambda': world.set_scale_lambda
         }
 
         # Parse world dimensions and characteristics

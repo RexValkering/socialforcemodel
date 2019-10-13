@@ -2,11 +2,11 @@ from numba import jit, float32, bool_, int32
 import numpy as np
 
 
-@jit(float32[:](float32, float32[:], float32[:], float32, float32,
+@jit(float32[:](float32, float32[:], float32[:], float32, float32, float32,
      float32[:, :], float32[:, :], float32[:], float32, float32, bool_, bool_,
      float32[:], float32[:], int32))
 def calculate_pedestrian_repulsive_force(distance_threshold, self_position, self_velocity,
-                                         self_radius, self_speed, ped_position, ped_velocity,
+                                         self_radius, self_speed, self_labda_scale, ped_position, ped_velocity,
                                          ped_radius, world_height, world_width, continuous_domain,
                                          ignore_pedestrians_behind, desired_dir, force_args, k):
     """ Calculates the repulsive force with all others pedestrians. """
@@ -75,6 +75,7 @@ def calculate_pedestrian_repulsive_force(distance_threshold, self_position, self
 
         factor = max(distance, 0.15)
         cos_angle = desired_dir * difference_direction
+        labda = (1.0 - self_labda_scale * (1.0 - labda))
         omega = labda + (1 - labda) * (1 + cos_angle) / 2
         social_repulsion_force = max_repulsive_force * omega * np.exp(
             - factor / D_zero + (D_one / factor)**k

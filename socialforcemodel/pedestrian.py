@@ -77,7 +77,7 @@ class Pedestrian(object):
         self.quad = None
 
         self.initialize()
-        
+
         self.current_max_repulsion = 160.0
 
         # Make sure this pedestrian is in the group.
@@ -234,7 +234,7 @@ class Pedestrian(object):
         pos = np.array(self.position)
         if isinstance(goal, Area):
             goal = goal.get_closest_point(pos)
-        
+
         goal_vec = goal - pos
         if length_squared(goal_vec) < 0.001:
             return False
@@ -265,7 +265,7 @@ class Pedestrian(object):
                 raise
 
         # Determine whether braking should stop.
-        if self.is_braking and (self.speed != self.next_speed and self.speed / self.next_speed < 1.5):     
+        if self.is_braking and (self.speed != self.next_speed and self.speed / self.next_speed < 1.5):
             self.is_braking = False
             self.desired_velocity = self.original_desired_velocity
 
@@ -527,7 +527,7 @@ class Pedestrian(object):
         # sum of the desired velocity towards target and the average
         # velocity.
         actual_desired_velocity = max(0.0, self.desired_velocity + self.desired_velocity_offset)
-        preferred_velocity = ((velocity_factor * actual_desired_velocity * desired_dir) + 
+        preferred_velocity = ((velocity_factor * actual_desired_velocity * desired_dir) +
                               (1 - velocity_factor) * average_velocity)
 
         attractive_force = (- self.mass * (self.velocity -
@@ -579,9 +579,11 @@ class Pedestrian(object):
         force_args.append(smoothing_squared)
         force_args.append(smoothing_factor)
 
+        labda_factor = max(0.0, self.speed / self.desired_velocity) if self.group.world.scale_lambda else 1.0
+
         force = calculate_pedestrian_repulsive_force(
             world.interactive_distance_threshold, self.position, self.velocity,
-            self.radius, self.speed, p_position, p_velocity, p_radius,
+            self.radius, self.speed, labda_factor, p_position, p_velocity, p_radius,
             world.height, world.width, world.continuous_domain,
             world.ignore_pedestrians_behind, self.desired_direction,
             force_args, world.turbulence_exponent)
