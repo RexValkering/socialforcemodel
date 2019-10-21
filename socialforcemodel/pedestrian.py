@@ -579,7 +579,14 @@ class Pedestrian(object):
         force_args.append(smoothing_squared)
         force_args.append(smoothing_factor)
 
-        labda_factor = max(0.0, self.speed / self.desired_velocity) if self.group.world.scale_lambda else 1.0
+        labda_factor = 1.0
+        if self.group.world.scale_lambda:
+            velocity_x_component = np.dot(
+                np.dot(self.velocity, self.desired_direction) / np.dot(self.desired_direction, self.desired_direction),
+                self.desired_direction
+            )[0]
+
+            labda_factor = min(1.0, max(0.0, velocity_x_component / self.desired_velocity))
 
         force = calculate_pedestrian_repulsive_force(
             world.interactive_distance_threshold, self.position, self.velocity,
