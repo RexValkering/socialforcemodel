@@ -1,0 +1,42 @@
+world_height: 10
+world_width: 20
+groups:
+    -   num_pedestrians: 100
+        spawn_area:
+            start:
+                x: 0.5
+                y: 0.5
+            end:
+                x: 9.5
+                y: 9.5
+        target_area:
+            start:
+                x: 20.0
+                y: 2.5
+            end:
+                x: 25.0
+                y: 7.5
+        target_path:
+            -   x: 9.5
+                y: 5.0
+            -   x: 21.0
+                y: 5.0
+obstacles:
+    -   points:
+            -   x: 10.0
+                y: 0.0
+            -   x: 10.0
+                y: 2.5
+            -   x: 11.0
+                y: 3.5
+            -   x: 20.0
+                y: 3.5
+    -   points:
+            -   x: 20.0
+                y: 6.5
+            -   x: 11.0
+                y: 6.5
+            -   x: 10.0
+                y: 7.5
+            -   x: 10.0
+                y: 10.0
